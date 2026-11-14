@@ -258,14 +258,8 @@ function App() {
               {/* Fila Remember me / Forgot Password */}
               <div className="login-options-row">
                 <label className="remember-label">
-                  <input
-                    type="checkbox"
-                    checked={recordar}
-                    onChange={(e) => setRecordar(e.target.checked)}
-                  />
-                  <span>Remember me</span>
+                  
                 </label>
-                <span className="forgot-link">Forgot Password?</span>
               </div>
             </div>
 
