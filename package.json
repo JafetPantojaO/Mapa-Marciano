@@ -1,0 +1,17 @@
+{
+  "name": "mapa-marciano",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Proyecto Mapa Marciano con React y Node.js",
+  "scripts": {
+    "dev": "npm run dev --prefix FrontEnd",
+    "start": "npm run dev --prefix FrontEnd",
+    "frontend": "npm run dev --prefix FrontEnd",
+    "backend": "npm run dev --prefix BackEnd",
+    "dev:all": "concurrently \"npm run dev --prefix BackEnd\" \"npm run dev --prefix FrontEnd\"",
+    "build": "npm run build --prefix FrontEnd"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
