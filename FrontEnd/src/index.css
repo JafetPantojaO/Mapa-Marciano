@@ -1,19 +1,29 @@
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  line-height: 1.5;
-  color: #1a1a1a;
-  background-color: #ffffff;
+  font-family: Calibri, 'Gill Sans', 'Segoe UI', Candara, Arial, sans-serif;
+  line-height: 1.4;
+  color: #ffffff;
+  background-color: #000000;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Calibri, 'Gill Sans', 'Segoe UI', Candara, Arial, sans-serif;
 }
 
 body {
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  padding: 0;
   min-height: 100vh;
+  background-image: url('/BackGround_IMagen.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: #ffffff;
 }
 
-h1 {
-  font-size: 3rem;
-  margin: 0;
+button, input, select, textarea {
+  font-family: Calibri, 'Gill Sans', 'Segoe UI', Candara, Arial, sans-serif;
 }
