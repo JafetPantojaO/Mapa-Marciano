@@ -1,14 +1,14 @@
-# Mapa-Marciano 🚀🔴
+# Mapa-Marciano 
 
-Aplicación web para planificación de rutas, cartografía marciana y telemetría de rovers en Marte. Desarrollada con **React (Vite)** en el FrontEnd, **Node.js (Express)** en el BackEnd y **MySQL 8.0** en un contenedor **Docker** aislado para la base de datos.
+Aplicación web para planificación de rutas, cartografía marciana y telemetría de rovers en Marte. Desarrollada con **React** en el FrontEnd, **Node.js (Express)** en el BackEnd y **MySQL 8.0** en un contenedor **Docker** aislado para la base de datos.
 
 ---
 
-## 🏗️ Arquitectura del Entorno de Desarrollo
+## Arquitectura del Entorno de Desarrollo
 
-* **Base de Datos (Dockerizada):** Motor **MySQL 8.0** ejecutándose en un contenedor Docker (`mapa_marciano_db`) con persistencia en un volumen nombrado y migración inicial automática (`./database/init.sql`).
-* **BackEnd (Host Local):** Servidor API REST con **Node.js + Express** corriendo en tu máquina local (`http://localhost:4000`).
-* **FrontEnd (Host Local):** Aplicación cliente SPA con **React + Vite** corriendo en tu máquina local (`http://localhost:5173`).
+* **Base de Datos :** Motor **MySQL 8.0** ejecutándose en un contenedor Docker (`mapa_marciano_db`) con persistencia en un volumen nombrado y migración inicial automática (`./database/init.sql`).
+* **BackEnd:** Servidor API REST con **Node.js + Express** corriendo en tu máquina local (`http://localhost:4000`).
+* **FrontEnd:** Aplicación cliente SPA con **React + Vite** corriendo en tu máquina local (`http://localhost:5173`).
 
 ---
 
@@ -57,7 +57,7 @@ PORT=4000
 
 ---
 
-## 🐳 Paso 2: Iniciar la Base de Datos con Docker
+## Paso 2: Iniciar la Base de Datos con Docker
 
 Únicamente la base de datos corre dentro de Docker. Para iniciar el contenedor de MySQL 8.0:
 
@@ -65,27 +65,7 @@ PORT=4000
 docker compose up -d
 ```
 
-### ¿Qué hace este comando automáticamente?
-1. Descarga la imagen oficial `mysql:8.0` (si no existe localmente).
-2. Crea el contenedor `mapa_marciano_db` exponiendo el puerto `3306` hacia tu máquina.
-3. **Persistencia:** Monta el volumen persistente `mapa_marciano_mysql_data`, garantizando que los datos no se borren cuando apagues o reinicies el contenedor.
-4. **Migración Inicial Automática:** La primera vez que el volumen se crea, Docker ejecuta automáticamente el script [`./database/init.sql`](database/init.sql), el cual:
-   * Crea la base de datos `mapa_marciano`.
-   * Crea el esquema completo de 11 tablas del centro de control marciano:
-     1. `Astronauta` (Astronauta_ID, Nombre, Identificador)
-     2. `Cuenta` (CUENTA_ID, Astronauta_ID, Usuario, PasswordHash)
-     3. `InicioSesion` (Login_ID, CUENTA_ID, FechaHora)
-     4. `DatosEspectrales` (BarraEspectral, Termico, Opticos, Radiacion)
-     5. `Mapa` (Mapa_ID, Coordenadas, Posicion, Brujula)
-     6. `HUD` (HUD_ID, BarraEspectral, Mapa_ID, TiempoAtmosferico)
-     7. `StatusAstronauta` (UniqueID, Astronauta_ID, TemperaturaCorporal, Oxigeno, Radiacion, Comunicacion)
-     8. `Rover` (Rover_ID, Energia, Tamaño, Peso)
-     9. `StatusRover` (Status_ID, Rover_ID, Capacidad, Sensores, Disponibilidad, Ruedas, Comunicacion, Brazo)
-     10. `SolicitudRuta` (SolicitudRuta_ID, Astronauta_ID, EquipoCientifico, Objetivo)
-     11. `Ruta` (RutaID, SolicitudRuta_ID, Origen, Destino, Coordenadas, DistanciaTotal, Duracion, Peligro)
-   * Inserta datos iniciales de prueba (seed data) para astronautas y cuentas de acceso, así como los 25 puntos geográficos calibrados de Marte en la tabla `Mapa`.
-
-### 👨‍🚀 Credenciales Oficiales de Prueba (Autenticación MySQL)
+### Credenciales Oficiales de Prueba (Autenticación MySQL)
 
 Puedes iniciar sesión con cualquiera de los siguientes operadores creados en la base de datos:
 
@@ -95,13 +75,6 @@ Puedes iniciar sesión con cualquiera de los siguientes operadores creados en la
 | `ASTRO-02` | `mwatney` | `BotanistMars42!` | Mark Watney (Especialista Botánico / Geología) |
 | `ASTRO-03` | `cherrera` | `RoverPilot33!` | Carlos Herrera (Piloto Principal de Rover) |
 
-*(En la pantalla de login puedes ingresar tanto el Identificador como el Usuario, o hacer clic directamente en los accesos rápidos).*
-
-### 🗺️ Guardado Directo Automático y Algoritmo de Backtracking
-
-* Cada vez que se planifica o selecciona una ruta en el mapa, los datos reales de cartografía marciana (coordenadas geodésicas, distancia ortodrómica, duración y nivel de riesgo) se persisten **directamente y sin pedir confirmación** en las tablas `SolicitudRuta` y `Ruta`.
-* **Algoritmo de Backtracking Exhaustivo:** El motor de navegación explora recursivamente todos los caminos simples posibles entre el origen y destino en el grafo cartográfico de Marte.
-* **Ordenamiento de Factibilidad y Velocidad:** Muestra **todas las rutas disponibles**, clasificadas y ordenadas estrictamente desde la **más factible y rápida** (máxima seguridad topográfica, menor opacidad de polvo y menor tiempo de viaje) hasta la **más ineficiente y lenta** (desvíos masivos, relieve accidentado y alto riesgo).
 
 ### Comandos útiles de Docker:
 
@@ -174,7 +147,7 @@ npm install --prefix BackEnd
 
 ---
 
-## 🚀 Paso 4: Cómo Correr la Aplicación
+## Paso 4: Cómo Correr la Aplicación
 
 Tanto React como Node.js se ejecutan localmente en tu host (sin Docker).
 
@@ -210,35 +183,3 @@ npm run build
 Los artefactos estáticos se compilarán en `FrontEnd/dist/`.
 
 ---
-
-## 📁 Estructura del Proyecto
-
-```
-Mapa-Marciano/
-├── .env                      # Variables de entorno locales (ignorado por git)
-├── .env.example              # Plantilla pública de variables de entorno
-├── .gitignore                # Reglas de exclusión de Git (node_modules, .env, etc.)
-├── docker-compose.yml        # Orquestación de MySQL 8.0 en contenedor
-├── package.json              # Scripts orquestadores del repositorio
-├── README.md                 # Documentación técnica del proyecto
-├── database/
-│   └── init.sql              # Script SQL inicial (tablas astronautas, rutas, astronauta_rutas + seed)
-├── BackEnd/                  # Servidor de API (Node.js + Express)
-│   ├── .env                  # Variables locales del backend
-│   ├── .env.example          # Plantilla de variables del backend
-│   ├── package.json          # Dependencias y scripts de Node.js (mysql2, dotenv, express, etc.)
-│   └── src/
-│       ├── index.js          # Servidor Express básico en puerto 4000
-│       ├── constants/        # Puntos y constantes geográficas marcianas
-│       ├── routes/           # Endpoints de API (/api/mapa, etc.)
-│       └── services/         # Algoritmos Dijkstra, geodesia y muestreo satelital
-└── FrontEnd/                 # Aplicación Cliente SPA (React 19 + Vite)
-    ├── package.json          # Dependencias de React
-    ├── vite.config.js        # Configuración de Vite
-    ├── index.html            # Entrypoint HTML
-    └── src/
-        ├── App.jsx           # Componente principal con consola de comando marciana
-        ├── components/       # Mapas Leaflet, minimapas y paneles espectrales
-        ├── constants/        # Capas WMTS oficiales de NASA Mars Trek
-        └── services/         # Conexión con endpoints del BackEnd
-```
