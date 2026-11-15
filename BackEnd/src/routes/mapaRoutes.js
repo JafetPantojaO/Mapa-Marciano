@@ -16,6 +16,7 @@ import {
   generarListaRutas,
   planificarRutaSimple
 } from '../services/roverPathfindingService.js';
+import { muestrearDatosEspectralesRover } from '../services/marsSpectralService.js';
 
 const router = express.Router();
 
@@ -155,6 +156,71 @@ router.post('/resolver-punto', (req, res) => {
     status: 'success',
     punto: resPunto
   });
+});
+
+/**
+ * POST /api/mapa/muestrear-espectral
+ * Muestrea las capas reales de NASA Trek en las coordenadas exactas del rover.
+ * REGLA CRÍTICA: Prohibido inventar o simular. Se muestrean las capas satelitales reales.
+ */
+router.post('/muestrear-espectral', async (req, res) => {
+  try {
+    const { lat, lon, tramoActual = 1, totalTramos = 1, waypointCercano = 'Ubicación Rover' } = req.body;
+    if (lat === undefined || lon === undefined) {
+      return res.status(400).json({
+        status: 'error',
+        mensaje: 'Debe proporcionar lat y lon para el muestreo espectral.'
+      });
+    }
+
+    const resultado = await muestrearDatosEspectralesRover({
+      lat: Number(lat),
+      lon: Number(lon),
+      tramoActual: Number(tramoActual),
+      totalTramos: Number(totalTramos),
+      waypointCercano
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    console.error('Error en muestreo espectral:', err);
+    res.status(500).json({
+      status: 'error',
+      mensaje: 'Fallo al muestrear capas satelitales reales.'
+    });
+  }
+});
+
+/**
+ * GET /api/mapa/muestrear-espectral
+ * Soporte de consulta GET con parámetros de query
+ */
+router.get('/muestrear-espectral', async (req, res) => {
+  try {
+    const { lat, lon, tramoActual = 1, totalTramos = 1, waypointCercano = 'Ubicación Rover' } = req.query;
+    if (lat === undefined || lon === undefined) {
+      return res.status(400).json({
+        status: 'error',
+        mensaje: 'Debe proporcionar lat y lon en query params.'
+      });
+    }
+
+    const resultado = await muestrearDatosEspectralesRover({
+      lat: Number(lat),
+      lon: Number(lon),
+      tramoActual: Number(tramoActual),
+      totalTramos: Number(totalTramos),
+      waypointCercano
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    console.error('Error en muestreo espectral:', err);
+    res.status(500).json({
+      status: 'error',
+      mensaje: 'Fallo al muestrear capas satelitales reales.'
+    });
+  }
 });
 
 export default router;

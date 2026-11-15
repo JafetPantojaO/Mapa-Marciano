@@ -2115,3 +2115,819 @@ button,
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================================================
+   FUNCIÓN 1 Y 2: LAYOUT DIVIDIDO (MAPA PRINCIPAL + COLUMNA DERECHA)
+   ========================================================================== */
+
+.map-navigation-split-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(360px, 1.15fr);
+  gap: 20px;
+  width: 100%;
+  align-items: start;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1180px) {
+  .map-navigation-split-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.main-map-column {
+  width: 100%;
+  min-width: 0;
+}
+
+.rover-navigation-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   FUNCIÓN 1: MINIMAPA QUE SIGUE LA RUTA
+   -------------------------------------------------------------------------- */
+
+.rover-minimap-card {
+  background: #0b1120;
+  border: 1px solid #1e293b;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minimap-header {
+  padding: 10px 14px;
+  background: #0d1527;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.minimap-title-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.minimap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dot-live-ping {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseDot 1.4s infinite ease-in-out;
+}
+
+.minimap-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.minimap-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.line-sample {
+  display: inline-block;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.line-sample.line-solid {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.line-sample.line-dashed {
+  background: repeating-linear-gradient(
+    90deg,
+    #f59e0b,
+    #f59e0b 4px,
+    transparent 4px,
+    transparent 7px
+  );
+}
+
+.minimap-viewport-wrapper {
+  position: relative;
+  width: 100%;
+  height: 230px;
+  background: #02040a;
+  overflow: hidden;
+}
+
+.minimap-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Retícula y mira táctica sobre el minimapa */
+.minimap-reticle-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500;
+}
+
+.reticle-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(245, 158, 11, 0.55);
+}
+
+.reticle-corner.tl {
+  top: 8px;
+  left: 8px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.reticle-corner.tr {
+  top: 8px;
+  right: 8px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+.reticle-corner.bl {
+  bottom: 8px;
+  left: 8px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.reticle-corner.br {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
+.reticle-center-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: 50%;
+}
+
+.minimap-footer-telemetry {
+  padding: 6px 14px;
+  background: #080d19;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.coord-label {
+  color: #64748b;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.coord-values {
+  font-family: var(--font-mono);
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* Marcador del rover en el minimapa */
+.minimap-rover-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rover-pulse-ring {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.35);
+  border: 1.5px solid #10b981;
+  animation: pingDot 1.6s infinite ease-out;
+}
+
+.rover-core-dot {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  background: #0f172a;
+  border: 2px solid #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px #10b981;
+}
+
+/* Marcador del rover en el mapa principal */
+.mainmap-rover-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-rover-pulse {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.35);
+  border: 2px solid #38bdf8;
+  animation: pingDot 1.8s infinite ease-out;
+}
+
+.main-rover-icon {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  background: #0284c7;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px #38bdf8;
+}
+
+/* --------------------------------------------------------------------------
+   CONTROLES DE AVANCE DEL ROVER (SLIDER + REPRODUCIR / PAUSAR)
+   -------------------------------------------------------------------------- */
+
+.rover-timeline-controller-card {
+  background: #0d1527;
+  border: 1px solid #1e293b;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeline-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeline-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controller-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.controller-status {
+  font-size: 11px;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.timeline-distance-readout {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+}
+
+.timeline-distance-readout strong {
+  color: #f1f5f9;
+}
+
+.timeline-percent {
+  color: #10b981;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.slider-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.rover-progress-slider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #1e293b;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+
+.rover-progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  cursor: grab;
+  box-shadow: 0 0 10px #38bdf8;
+  transition: transform 120ms;
+}
+
+.rover-progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.rover-progress-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+}
+
+.rover-progress-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  cursor: grab;
+  box-shadow: 0 0 10px #38bdf8;
+}
+
+.timeline-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-step-nav {
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.btn-step-nav:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.btn-play-pause-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 160ms;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
+
+.btn-play-pause-toggle:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-play-pause-toggle.is-playing {
+  background: #ea580c;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
+}
+
+.btn-play-pause-toggle.is-playing:hover {
+  background: #c2410c;
+}
+
+.timeline-speed-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.speed-label {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+
+.btn-speed-pill {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 140ms;
+}
+
+.btn-speed-pill:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.btn-speed-pill.active {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #0f172a;
+}
+
+/* --------------------------------------------------------------------------
+   FUNCIÓN 2: PANEL DE DATOS ESPECTRALES (DEBAJO DEL MINIMAPA)
+   -------------------------------------------------------------------------- */
+
+.spectral-data-card {
+  background: #0b1120;
+  border: 1px solid #1e293b;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  gap: 14px;
+}
+
+.spectral-data-empty {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.spectral-empty-text {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.spectral-card-header {
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 10px;
+}
+
+.spectral-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spectral-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.spectral-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f59e0b;
+}
+
+.spectral-loading-indicator {
+  font-size: 10px;
+  color: #38bdf8;
+  font-style: italic;
+}
+
+.spectral-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.spectral-waypoint-sub {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.spectral-waypoint-sub strong {
+  color: #38bdf8;
+}
+
+.spectral-variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spectral-variable-row {
+  background: #0d1527;
+  border: 1px solid #1e293b;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.variable-meta-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.variable-label-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.variable-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.variable-dot[data-var='optico'] {
+  background: #06b6d4;
+  box-shadow: 0 0 6px #06b6d4;
+}
+
+.variable-dot[data-var='termico'] {
+  background: #f97316;
+  box-shadow: 0 0 6px #f97316;
+}
+
+.variable-dot[data-var='polvo'] {
+  background: #eab308;
+  box-shadow: 0 0 6px #eab308;
+}
+
+.variable-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.badge-tag-estimado {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-tag-real {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.variable-val-group {
+  text-align: right;
+}
+
+.variable-value {
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  color: #f1f5f9;
+}
+
+.variable-value.val-sin-dato {
+  color: #ef4444;
+  font-style: italic;
+  font-weight: 600;
+}
+
+/* Barra horizontal de intensidad */
+.spectral-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.spectral-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 180ms ease-out;
+}
+
+.spectral-bar-fill.fill-optico {
+  background: linear-gradient(90deg, #0284c7, #06b6d4);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+}
+
+.spectral-bar-fill.fill-termico {
+  background: linear-gradient(90deg, #ea580c, #f97316);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
+}
+
+.spectral-bar-fill.fill-polvo {
+  background: linear-gradient(90deg, #d97706, #eab308);
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
+}
+
+.spectral-bar-fill.fill-empty {
+  width: 0% !important;
+}
+
+/* Caja de cálculo derivado con fórmula explícita */
+.derived-calc-box {
+  margin-top: 3px;
+  padding: 6px 8px;
+  background: #090e1c;
+  border: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.derived-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.derived-title {
+  color: #94a3b8;
+}
+
+.derived-val {
+  font-family: var(--font-mono);
+  color: #fb923c;
+}
+
+.derived-formula {
+  font-size: 10px;
+  color: #64748b;
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.derived-formula code {
+  color: #93c5fd;
+}
+
+/* Mineral dominante debajo */
+.dominant-mineral-box {
+  background: #0d1527;
+  border: 1px solid #1e293b;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mineral-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mineral-sec-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.mineral-level-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mineral-level-badge.level-verde {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.mineral-level-badge.level-ambar {
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.mineral-level-badge.level-rojo {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+
+.mineral-name-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mineral-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.mineral-chem-formula {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: #38bdf8;
+  background: #1e293b;
+  padding: 1px 6px;
+}
+
+.mineral-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.spectral-footer-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.4;
+  padding-top: 4px;
+  border-top: 1px solid #1e293b;
+}
+
+.spectral-footer-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #94a3b8;
+}

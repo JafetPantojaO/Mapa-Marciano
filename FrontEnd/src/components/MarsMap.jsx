@@ -14,7 +14,9 @@ export default function MarsMap({
   setModoSeleccion,
   capaActivaId,
   onChangeCapa,
-  rutaActiva
+  rutaActiva,
+  minimapBounds,
+  posicionRover
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -24,6 +26,8 @@ export default function MarsMap({
   const polylineRef = useRef(null);
   const waypointLayerRef = useRef(null);
   const basePointsLayerRef = useRef(null);
+  const minimapRectRef = useRef(null);
+  const roverMainMarkerRef = useRef(null);
 
   const [mapaListo, setMapaListo] = useState(false);
   const [coordenadasCursor, setCoordenadasCursor] = useState(null);
@@ -461,6 +465,77 @@ export default function MarsMap({
       polylineRef.current = polyline;
     }
   }, [origen, destino, rutaActiva, onSelectOrigen, onSelectDestino]);
+
+  // 7. Dibujar recuadro punteado que indica el área visible del minimapa
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.L) return;
+    const L = window.L;
+    const map = mapInstanceRef.current;
+
+    if (minimapRectRef.current) {
+      map.removeLayer(minimapRectRef.current);
+      minimapRectRef.current = null;
+    }
+
+    if (minimapBounds && minimapBounds.length === 2) {
+      const rect = L.rectangle(minimapBounds, {
+        color: '#f59e0b',
+        weight: 2,
+        dashArray: '5, 5',
+        fill: true,
+        fillColor: '#f59e0b',
+        fillOpacity: 0.12
+      }).addTo(map);
+
+      rect.bindTooltip('Área visible del Minimapa', {
+        permanent: false,
+        direction: 'top'
+      });
+
+      minimapRectRef.current = rect;
+    }
+  }, [minimapBounds]);
+
+  // 8. Dibujar marcador del rover en el mapa principal en la posición actual
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.L) return;
+    const L = window.L;
+    const map = mapInstanceRef.current;
+
+    if (roverMainMarkerRef.current) {
+      map.removeLayer(roverMainMarkerRef.current);
+      roverMainMarkerRef.current = null;
+    }
+
+    if (posicionRover && posicionRover.lat !== undefined && posicionRover.lon !== undefined) {
+      const roverIcon = L.divIcon({
+        className: 'mainmap-rover-marker',
+        html: `
+          <div class="main-rover-pulse"></div>
+          <div class="main-rover-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="#ffffff">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="#ffffff" stroke-width="2.5"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+
+      const marker = L.marker([posicionRover.lat, posicionRover.lon], {
+        icon: roverIcon,
+        zIndexOffset: 1200
+      }).addTo(map);
+
+      marker.bindTooltip(`Rover: ${posicionRover.waypointCercano || 'En ruta'}`, {
+        direction: 'top',
+        offset: [0, -12]
+      });
+
+      roverMainMarkerRef.current = marker;
+    }
+  }, [posicionRover]);
 
   // Centrar y ajustar vista
   const handleAjustarVista = () => {

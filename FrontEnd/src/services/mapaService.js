@@ -105,3 +105,28 @@ export async function resolverPuntoCercanoApi(punto) {
     return null;
   }
 }
+
+/**
+ * Solicita al BackEnd el muestreo de datos espectrales reales en las coordenadas del rover
+ */
+export async function muestrearDatosEspectralesApi(lat, lon, tramoActual = 1, totalTramos = 1, waypointCercano = 'Rover') {
+  try {
+    const res = await fetch(`${API_BASE}/muestrear-espectral`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lat,
+        lon,
+        tramoActual,
+        totalTramos,
+        waypointCercano
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.warn('Conexión con BackEnd para espectrometría no disponible:', error.message);
+    return null;
+  }
+}

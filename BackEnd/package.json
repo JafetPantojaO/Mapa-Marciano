@@ -1,6 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "Servidor Node.js para Mapa Marciano",
   "main": "src/index.js",
   "scripts": {

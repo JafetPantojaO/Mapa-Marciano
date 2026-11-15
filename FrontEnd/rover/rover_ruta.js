@@ -324,12 +324,48 @@
     // Minimiza pendiente, viento, polvo y oscilación térmica con máxima ponderación en seguridad
     let caminoOptimo = dijkstraConCosto(o, d, (u, v, dist) => {
       const pV = puntoPorId.get(v);
+      let penalizacionInst = 0;
+      let afinidadInst = 0;
+      if (instrumentos && instrumentos.length > 0) {
+        penalizacionInst += (instrumentos.length * 0.35) * Math.max(0, ((pV.pendiente_grados || 5) - 4.5) / 3.0);
+        for (const inst of instrumentos) {
+          if (inst.includes('LIBS')) {
+            if (pV.id === 13 || pV.id === 4) afinidadInst += 0.45;
+            if ((pV.opacidad_polvo || 1) > 1.2) penalizacionInst += 1.8;
+          }
+          if (inst.includes('Taladro')) {
+            if (pV.id === 13 || pV.id === 4) afinidadInst += 0.50;
+            if ((pV.pendiente_grados || 5) > 5.0) penalizacionInst += 2.5 * Math.pow(((pV.pendiente_grados || 5) - 5.0) / 2, 1.4);
+            if ((pV.opacidad_polvo || 1) > 1.3) penalizacionInst += 1.5;
+          }
+          if (inst.includes('RIMFAX')) {
+            if (pV.id === 5 || pV.id === 1) afinidadInst += 0.55;
+            if ((pV.pendiente_grados || 5) > 6.0) penalizacionInst += 2.0;
+          }
+          if (inst.includes('MEDA')) {
+            if ((pV.viento_ms || 12) > 13.0) penalizacionInst += 2.2 * (((pV.viento_ms || 12) - 13.0) / 3);
+            if ((pV.opacidad_polvo || 1) > 1.1) penalizacionInst += 2.0 * (((pV.opacidad_polvo || 1) - 1.1) / 0.3);
+            if (pV.id === 17) afinidadInst += 0.3;
+          }
+          if (inst.includes('Mastcam')) {
+            if ((pV.opacidad_polvo || 1) > 0.85) penalizacionInst += 3.2 * (((pV.opacidad_polvo || 1) - 0.85) / 0.25);
+            if (pV.id === 17) afinidadInst += 0.4;
+          }
+          if (inst.includes('SHERLOC')) {
+            if (pV.id === 24 || pV.id === 14 || pV.id === 21) afinidadInst += 0.60;
+            const osc = (pV.temp_max_c || 0) - (pV.temp_min_c || -70);
+            if (osc > 68) penalizacionInst += 2.0;
+          }
+        }
+      }
+
       const riesgo =
         ((pV.pendiente_grados || 5) / 25) * (tieneMaterialCientifico ? 5 : 3) +
         ((pV.opacidad_polvo || 1) / 3) * 2.5 +
         ((pV.viento_ms || 12) / 30) * 2 +
         (Math.abs((pV.temp_max_c || 0) - (pV.temp_min_c || -70)) / 100) * 1.5;
-      return dist * (1 + riesgo * 3.5);
+      const factorTotal = Math.max(0.2, 1 + riesgo * 3.5 + penalizacionInst - afinidadInst);
+      return dist * factorTotal;
     });
 
     if (!caminoOptimo) {
@@ -618,6 +654,17 @@
       });
     });
 
+    let mapaSugerido = 'Mars_Viking_MDIM21_ClrMosaic_global_232m';
+    if (instrumentos && instrumentos.length > 0) {
+      if (instrumentos.some((i) => i.includes('MEDA') || i.includes('Mastcam'))) {
+        mapaSugerido = 'TES_Dust';
+      } else if (instrumentos.some((i) => i.includes('SHERLOC'))) {
+        mapaSugerido = 'TES_Thermal_Inertia';
+      } else if (instrumentos.some((i) => i.includes('RIMFAX') || i.includes('LIBS') || i.includes('Taladro'))) {
+        mapaSugerido = 'Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw';
+      }
+    }
+
     return {
       ok: true,
       origen: puntoO,
@@ -625,6 +672,7 @@
       carga: cargaAjustada,
       tieneMaterialCientifico,
       instrumentos,
+      mapaSugerido,
       rutas: rutasProcesadas
     };
   }

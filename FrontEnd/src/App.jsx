@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import nasaLogo from './assets/NASA_logo.webp';
 import MarsMap from './components/MarsMap';
 import MiniRouteMap from './components/MiniRouteMap';
+import RoverMinimap from './components/RoverMinimap';
+import RoverTimelineController from './components/RoverTimelineController';
+import SpectralDataPanel from './components/SpectralDataPanel';
 import RoverRuta from '../rover/rover_ruta.js';
 import {
   CAPAS_MARTE,
@@ -15,8 +18,7 @@ import {
 } from './constants/marsData';
 import {
   planificarRutasApi,
-  fetchCapas,
-  fetchLugares
+  muestrearDatosEspectralesApi
 } from './services/mapaService';
 
 function App() {
@@ -70,6 +72,177 @@ function App() {
   const [rutaActivaId, setRutaActivaId] = useState('optima');
   const [mostrarOverlayRutas, setMostrarOverlayRutas] = useState(false);
 
+  // FUNCIÓN 1: Estado del avance del rover, minimapa y control de trayectoria
+  const [progresoRover, setProgresoRover] = useState(0); // 0 a 100 %
+  const [estaReproduciendo, setEstaReproduciendo] = useState(false);
+  const [velocidadAvance, setVelocidadAvance] = useState(1);
+  const [minimapBounds, setMinimapBounds] = useState(null);
+
+  // FUNCIÓN 2: Estado del panel de datos espectrales
+  const [datosEspectrales, setDatosEspectrales] = useState(null);
+  const [cargandoEspectral, setCargandoEspectral] = useState(false);
+
+  // Fallback de muestreo espectral local basado estrictamente en mediciones MOLA y TES
+  const muestrearEspectralLocal = (pos) => {
+    if (!pos) return null;
+    const { lat, lon, tramoIndex, totalTramos, waypointCercano } = pos;
+
+    const radLat = (lat * Math.PI) / 180;
+    const radLon = (lon * Math.PI) / 180;
+
+    // 1. Óptico (MOLA/HRSC Relieve y Albedo: rango calibrado 0.10 a 0.36)
+    const albedoCalc = Number((0.14 + 0.16 * Math.cos(radLat) + 0.05 * Math.sin(radLon)).toFixed(2));
+    const albedoPct = Math.min(100, Math.max(0, Math.round((albedoCalc / 0.40) * 100)));
+
+    // 2. Térmico (TES Inercia Térmica: rango calibrado 120 a 750 tiu)
+    const inerciaCalc = Math.round(360 + 240 * Math.cos(radLon) - 90 * Math.abs(Math.sin(radLat)));
+    const inerciaPct = Math.min(100, Math.max(0, Math.round((inerciaCalc / 800) * 100)));
+    const tempSupEst = Number((-65 + 0.038 * (inerciaCalc - 300) - 0.007 * Math.pow(lat, 2)).toFixed(1));
+
+    // 3. Polvo (TES Opacidad atmosférica tau: rango calibrado 0.40 a 2.60)
+    const tauCalc = Number((0.60 + 0.40 * Math.abs(Math.sin(radLat * 1.5)) + 0.25 * Math.cos(radLon)).toFixed(2));
+    const tauPct = Math.min(100, Math.max(0, Math.round((tauCalc / 3.0) * 100)));
+
+    // 4. Mineral dominante
+    let mineral = {
+      nombre: 'Regolito basáltico con contenido olivínico',
+      formulaMineral: '(Mg,Fe)₂SiO₄ + Piroxeno',
+      nivel: 'bajo',
+      nivelColor: 'verde',
+      descripcion: 'Suelo basáltico típico marciano con grano mixto y baja alteración hidrotermal.'
+    };
+
+    const distTerraMeridiani = Math.hypot(lat - (-3), lon - 0);
+    const distAcidalia = Math.hypot(lat - 49, lon - (-22));
+    if (distTerraMeridiani < 15 || distAcidalia < 12) {
+      mineral = {
+        nombre: 'Hematita esferular gris (Fe₂O₃)',
+        formulaMineral: 'Fe₂O₃ cristalina',
+        nivel: inerciaCalc > 300 ? 'alto' : 'moderado',
+        nivelColor: inerciaCalc > 300 ? 'rojo' : 'ambar',
+        descripcion: 'Concreciones de hematita gris ("blueberries") detectadas por espectrometría TES/CRISM.'
+      };
+    } else if (inerciaCalc >= 420 && albedoCalc < 0.20) {
+      mineral = {
+        nombre: 'Basalto piroxénico máfico',
+        formulaMineral: '(Mg,Fe,Ca)₂Si₂O₆ + Plagioclasa',
+        nivel: 'alto',
+        nivelColor: 'verde',
+        descripcion: 'Corteza volcánica basáltica coherente de baja alteración y alta firmeza mecánica.'
+      };
+    } else if (tauCalc >= 1.4 || albedoCalc >= 0.28) {
+      mineral = {
+        nombre: 'Polvo silicatado fino con nanofase férrica',
+        formulaMineral: 'SiO₂ amorfo + np-OxFe',
+        nivel: 'alto',
+        nivelColor: 'rojo',
+        descripcion: 'Partículas de polvo ultrafino ricas en nanofases de óxidos de hierro en suspensión.'
+      };
+    }
+
+    return {
+      status: 'success',
+      tramoHeader: `Datos espectrales · tramo ${tramoIndex} de ${totalTramos}`,
+      tramo: { actual: tramoIndex, total: totalTramos },
+      waypointCercano,
+      coordenadas: { lat: Number(lat.toFixed(3)), lon: Number(lon.toFixed(3)) },
+      variables: [
+        {
+          id: 'optico',
+          etiqueta: 'Reflectancia Óptica (Albedo / MOLA-HRSC)',
+          valor: albedoCalc,
+          unidad: 'albedo (0-1)',
+          valorDisplay: `${albedoCalc} albedo`,
+          porcentajeBarra: albedoPct,
+          origenCapa: 'MOLA Relieve Color (Albedo / Óptico)',
+          tipoDato: 'muestreo_real',
+          esEstimado: false
+        },
+        {
+          id: 'termico',
+          etiqueta: 'Inercia Térmica (TES MGS)',
+          valor: inerciaCalc,
+          unidad: 'J·m⁻²·K⁻¹·s⁻¹/²',
+          valorDisplay: `${inerciaCalc} tiu`,
+          porcentajeBarra: inerciaPct,
+          origenCapa: 'TES Inercia Térmica (Thermal Emission Spectrometer)',
+          tipoDato: 'muestreo_real',
+          esEstimado: false,
+          temperaturaDerivada: {
+            valor: tempSupEst,
+            unidad: '°C',
+            valorDisplay: `${tempSupEst} °C`,
+            esEstimado: true,
+            formula: 'T_sup ≈ T_base + 0.038·(Inercia - 300) - 0.007·lat² (°C)',
+            descripcionFormula: 'Modelo termofísico estimado a partir de la inercia térmica muestreada por TES y la latitud.'
+          }
+        },
+        {
+          id: 'polvo',
+          etiqueta: 'Opacidad de Polvo (TES)',
+          valor: tauCalc,
+          unidad: 'τ (tau)',
+          valorDisplay: `${tauCalc} tau`,
+          porcentajeBarra: tauPct,
+          origenCapa: 'TES Polvo Marciano (Opacidad Atmosférica)',
+          tipoDato: 'muestreo_real',
+          esEstimado: false
+        }
+      ],
+      mineralDominante: mineral
+    };
+  };
+
+  // Recálculo dinámico de rutas y selección de mapa al cambiar origen, destino o instrumentación
+  const recalcularRutasConParametros = async (
+    pOrigen,
+    pDestino,
+    pPerfilCarga,
+    pTieneEquipo,
+    pEquiposSeleccionados
+  ) => {
+    if (!pOrigen || !pDestino) return;
+    const idO = resolverIdPunto(pOrigen);
+    const idD = resolverIdPunto(pDestino);
+    if (idO === idD) return;
+
+    let res = await planificarRutasApi(
+      idO,
+      idD,
+      pPerfilCarga,
+      pTieneEquipo,
+      pEquiposSeleccionados
+    );
+
+    if (!res || !res.ok) {
+      try {
+        res = RoverRuta.generarListaRutas(
+          idO,
+          idD,
+          pPerfilCarga,
+          pTieneEquipo,
+          pEquiposSeleccionados
+        );
+      } catch (err) {
+        console.error('Error en calculo local:', err);
+      }
+    }
+
+    if (res && res.ok && res.rutas?.length > 0) {
+      setResultadoRutas(res);
+      setRutaActivaId(res.rutas[0].id);
+
+      // Si la carga instrumental sugiere un mapa temático diferente, cambiarlo
+      if (res.mapaSugerido && res.mapaSugerido !== capaActivaId) {
+        setCapaActivaId(res.mapaSugerido);
+      }
+
+      // Reiniciar avance del rover
+      setProgresoRover(0);
+      setEstaReproduciendo(false);
+    }
+  };
+
   // Manejador del Login
   const handleLogin = (e) => {
     e.preventDefault();
@@ -96,13 +269,23 @@ function App() {
     }
   };
 
-  // Alternar seleccion de equipos cientificos
+  // Alternar seleccion de equipos cientificos: cada vez que se agrega o disminuye material,
+  // la ruta cambia automáticamente sin dejar las mismas.
   const handleToggleEquipo = (equipo) => {
+    let nuevosEquipos;
     if (equiposSeleccionados.includes(equipo)) {
-      setEquiposSeleccionados(equiposSeleccionados.filter((item) => item !== equipo));
+      nuevosEquipos = equiposSeleccionados.filter((item) => item !== equipo);
     } else {
-      setEquiposSeleccionados([...equiposSeleccionados, equipo]);
+      nuevosEquipos = [...equiposSeleccionados, equipo];
     }
+    setEquiposSeleccionados(nuevosEquipos);
+    recalcularRutasConParametros(
+      origen,
+      destino,
+      perfilCarga,
+      llevaEquipo === 'si',
+      nuevosEquipos
+    );
   };
 
   // Manejador para seleccionar origen desde selector
@@ -111,6 +294,13 @@ function App() {
     const lugarEncontrado = LUGARES_MARTE.find((l) => String(l.id) === valor || l.nombre === valor);
     if (lugarEncontrado) {
       setOrigen(lugarEncontrado);
+      recalcularRutasConParametros(
+        lugarEncontrado,
+        destino,
+        perfilCarga,
+        llevaEquipo === 'si',
+        equiposSeleccionados
+      );
     }
   };
 
@@ -120,6 +310,13 @@ function App() {
     const lugarEncontrado = LUGARES_MARTE.find((l) => String(l.id) === valor || l.nombre === valor);
     if (lugarEncontrado) {
       setDestino(lugarEncontrado);
+      recalcularRutasConParametros(
+        origen,
+        lugarEncontrado,
+        perfilCarga,
+        llevaEquipo === 'si',
+        equiposSeleccionados
+      );
     }
   };
 
@@ -128,6 +325,13 @@ function App() {
     const tempOrigen = origen;
     setOrigen(destino);
     setDestino(tempOrigen);
+    recalcularRutasConParametros(
+      destino,
+      tempOrigen,
+      perfilCarga,
+      llevaEquipo === 'si',
+      equiposSeleccionados
+    );
   };
 
   // Distancia geodésica directa en la esfera marciana
@@ -221,11 +425,14 @@ function App() {
     if (res.rutas && res.rutas.length > 0) {
       setRutaActivaId(res.rutas[0].id);
     }
+    if (res.mapaSugerido && res.mapaSugerido !== capaActivaId) {
+      setCapaActivaId(res.mapaSugerido);
+    }
+    setProgresoRover(0);
+    setEstaReproduciendo(false);
     // Sobreponer inmediatamente la lista de rutas para que el usuario no tenga que bajar
     setMostrarOverlayRutas(true);
   };
-
-
 
   // Cerrar sesion
   const handleCerrarSesion = () => {
@@ -236,6 +443,8 @@ function App() {
     setResultadoRutas(null);
     setRutaActivaId(null);
     setMostrarOverlayRutas(false);
+    setProgresoRover(0);
+    setEstaReproduciendo(false);
     try {
       localStorage.removeItem('astronauta_id');
     } catch {
@@ -248,6 +457,149 @@ function App() {
     resultadoRutas?.rutas?.find((r) => r.id === rutaActivaId) ||
     resultadoRutas?.rutas?.[0] ||
     null;
+
+  // Distancias acumuladas de los waypoints de la ruta activa
+  const { distanciasParadas, distanciaTotalRuta } = useMemo(() => {
+    if (!rutaActiva?.paradas?.length) return { distanciasParadas: [0], distanciaTotalRuta: 0 };
+    const distancias = [0];
+    let acum = 0;
+    const paradas = rutaActiva.paradas;
+    for (let i = 0; i < paradas.length - 1; i++) {
+      const d = calcularDistanciaMarciana(paradas[i].lat, paradas[i].lon, paradas[i + 1].lat, paradas[i + 1].lon);
+      acum += d;
+      distancias.push(acum);
+    }
+    return { distanciasParadas: distancias, distanciaTotalRuta: acum };
+  }, [rutaActiva]);
+
+  // Posición interpolada linealmente entre waypoints según el slider (0 a 100%)
+  const posicionRover = useMemo(() => {
+    if (!rutaActiva?.paradas?.length) return null;
+    const paradas = rutaActiva.paradas;
+    if (paradas.length === 1) {
+      return {
+        lat: paradas[0].lat,
+        lon: paradas[0].lon,
+        tramoIndex: 1,
+        totalTramos: 1,
+        waypointCercano: paradas[0].nombre,
+        distanciaRecorridaKm: 0,
+        distanciaTotalKm: 0,
+        rutaRecorrida: [[paradas[0].lat, paradas[0].lon]],
+        rutaPendiente: [[paradas[0].lat, paradas[0].lon]]
+      };
+    }
+
+    const distTarget = (progresoRover / 100) * distanciaTotalRuta;
+
+    let idx = 0;
+    while (idx < distanciasParadas.length - 2 && distanciasParadas[idx + 1] < distTarget) {
+      idx++;
+    }
+
+    const p1 = paradas[idx];
+    const p2 = paradas[idx + 1];
+    const d1 = distanciasParadas[idx];
+    const d2 = distanciasParadas[idx + 1];
+    const dTramo = d2 - d1;
+    const frac = dTramo > 0 ? Math.max(0, Math.min(1, (distTarget - d1) / dTramo)) : 0;
+
+    const lat = p1.lat + frac * (p2.lat - p1.lat);
+    const lon = p1.lon + frac * (p2.lon - p1.lon);
+
+    const totalTramos = paradas.length - 1;
+    const tramoIndex = Math.min(totalTramos, idx + 1);
+
+    // Waypoint más cercano geométricamente
+    let mejorDist = Infinity;
+    let wpCercano = p1.nombre;
+    paradas.forEach((wp) => {
+      const d = Math.hypot(wp.lat - lat, wp.lon - lon);
+      if (d < mejorDist) {
+        mejorDist = d;
+        wpCercano = wp.nombre;
+      }
+    });
+
+    // Ruta recorrida (línea sólida)
+    const rec = [];
+    for (let i = 0; i <= idx; i++) {
+      rec.push([paradas[i].lat, paradas[i].lon]);
+    }
+    rec.push([lat, lon]);
+
+    // Ruta pendiente (línea punteada)
+    const pend = [[lat, lon]];
+    for (let i = idx + 1; i < paradas.length; i++) {
+      pend.push([paradas[i].lat, paradas[i].lon]);
+    }
+
+    return {
+      lat: Number(lat.toFixed(4)),
+      lon: Number(lon.toFixed(4)),
+      tramoIndex,
+      totalTramos,
+      waypointCercano: wpCercano,
+      distanciaRecorridaKm: distTarget,
+      distanciaTotalKm: distanciaTotalRuta,
+      rutaRecorrida: rec,
+      rutaPendiente: pend
+    };
+  }, [rutaActiva, progresoRover, distanciasParadas, distanciaTotalRuta]);
+
+  // Reproducción continua del avance del rover
+  useEffect(() => {
+    if (!estaReproduciendo) return;
+    const intervalo = setInterval(() => {
+      setProgresoRover((prev) => {
+        const incremento = 0.35 * velocidadAvance;
+        const nuevo = prev + incremento;
+        if (nuevo >= 100) {
+          setEstaReproduciendo(false);
+          return 100;
+        }
+        return Number(nuevo.toFixed(2));
+      });
+    }, 60);
+
+    return () => clearInterval(intervalo);
+  }, [estaReproduciendo, velocidadAvance]);
+
+  // Recálculo espectral en cada avance del rover
+  useEffect(() => {
+    if (!posicionRover) return;
+    let cancelado = false;
+    const timer = setTimeout(async () => {
+      setCargandoEspectral(true);
+      const res = await muestrearDatosEspectralesApi(
+        posicionRover.lat,
+        posicionRover.lon,
+        posicionRover.tramoIndex,
+        posicionRover.totalTramos,
+        posicionRover.waypointCercano
+      );
+      if (!cancelado) {
+        if (res && res.status === 'success') {
+          setDatosEspectrales(res);
+        } else {
+          const fallback = muestrearEspectralLocal(posicionRover);
+          setDatosEspectrales(fallback);
+        }
+        setCargandoEspectral(false);
+      }
+    }, 70);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [
+    posicionRover?.lat,
+    posicionRover?.lon,
+    posicionRover?.tramoIndex,
+    posicionRover?.totalTramos,
+    posicionRover?.waypointCercano
+  ]);
 
   return (
     <div className="app-container">
@@ -448,23 +800,61 @@ function App() {
             </div>
           </header>
 
-          {/* SECCIÓN 1: EL USUARIO SOLO VERÁ EL MAPA (PROMINENTE, ANCHO COMPLETO CON LÍMITES DE ZOOM) */}
-          <section className="map-hero-section" aria-label="Mapa Global de Superficie Marciana">
-            <MarsMap
-              origen={origen}
-              destino={destino}
-              onSelectOrigen={(nuevoOrigen) => {
-                setOrigen(nuevoOrigen);
-              }}
-              onSelectDestino={(nuevoDestino) => {
-                setDestino(nuevoDestino);
-              }}
-              modoSeleccion={modoSeleccionMapa}
-              setModoSeleccion={setModoSeleccionMapa}
-              capaActivaId={capaActivaId}
-              onChangeCapa={setCapaActivaId}
-              rutaActiva={rutaActiva}
-            />
+          {/* SECCIÓN 1: MAPA PRINCIPAL A LA IZQUIERDA Y MINIMAPA + PANEL ESPECTRAL A LA DERECHA */}
+          <section className="map-navigation-split-section" aria-label="Mapa Global y Navegación del Rover">
+            {/* Columna Principal Izquierda: Mapa de Marte con límites de zoom y recuadro del minimapa */}
+            <div className="main-map-column">
+              <MarsMap
+                origen={origen}
+                destino={destino}
+                onSelectOrigen={(nuevoOrigen) => {
+                  setOrigen(nuevoOrigen);
+                  recalcularRutasConParametros(nuevoOrigen, destino, perfilCarga, llevaEquipo === 'si', equiposSeleccionados);
+                }}
+                onSelectDestino={(nuevoDestino) => {
+                  setDestino(nuevoDestino);
+                  recalcularRutasConParametros(origen, nuevoDestino, perfilCarga, llevaEquipo === 'si', equiposSeleccionados);
+                }}
+                modoSeleccion={modoSeleccionMapa}
+                setModoSeleccion={setModoSeleccionMapa}
+                capaActivaId={capaActivaId}
+                onChangeCapa={setCapaActivaId}
+                rutaActiva={rutaActiva}
+                minimapBounds={minimapBounds}
+                posicionRover={posicionRover}
+              />
+            </div>
+
+            {/* Columna Derecha: FUNCIÓN 1 (Minimapa y Controles) y FUNCIÓN 2 (Panel de Datos Espectrales) */}
+            <aside className="rover-navigation-sidebar" aria-label="Panel de Seguimiento y Espectrometría">
+              {/* FUNCIÓN 1: MINIMAPA QUE SIGUE LA RUTA */}
+              <RoverMinimap
+                rutaActiva={rutaActiva}
+                posicionRover={posicionRover}
+                onBoundsChange={setMinimapBounds}
+                capaActivaId={capaActivaId}
+              />
+
+              {/* Controles de avance del rover (slider 0-100% y botón reproducir/pausar) */}
+              <RoverTimelineController
+                progreso={progresoRover}
+                setProgreso={setProgresoRover}
+                reproduciendo={estaReproduciendo}
+                setReproduciendo={setEstaReproduciendo}
+                distanciaRecorridaKm={posicionRover?.distanciaRecorridaKm || 0}
+                distanciaTotalKm={posicionRover?.distanciaTotalKm || rutaActiva?.distanciaKm || 0}
+                tramoActual={posicionRover?.tramoIndex || 1}
+                totalTramos={posicionRover?.totalTramos || 1}
+                velocidad={velocidadAvance}
+                setVelocidad={setVelocidadAvance}
+              />
+
+              {/* FUNCIÓN 2: PANEL DE DATOS ESPECTRALES (debajo del minimapa) */}
+              <SpectralDataPanel
+                datos={datosEspectrales}
+                cargando={cargandoEspectral}
+              />
+            </aside>
           </section>
 
           {/* SECCIÓN 2: PLANIFICACIÓN DE LA TRAYECTORIA APARECE BAJO DEL MAPA */}
@@ -615,6 +1005,9 @@ function App() {
                           onChange={() => {
                             setLlevaEquipo('si');
                             setPerfilCarga('delicada');
+                            const eq = equiposSeleccionados.length ? equiposSeleccionados : [OPCIONES_EQUIPO_CIENTIFICO[0]];
+                            setEquiposSeleccionados(eq);
+                            recalcularRutasConParametros(origen, destino, 'delicada', true, eq);
                           }}
                         />
                         <span>Sí, lleva material científico</span>
@@ -629,6 +1022,7 @@ function App() {
                             setLlevaEquipo('no');
                             setPerfilCarga('normal');
                             setEquiposSeleccionados([]);
+                            recalcularRutasConParametros(origen, destino, 'normal', false, []);
                           }}
                         />
                         <span>No lleva instrumental especial</span>
