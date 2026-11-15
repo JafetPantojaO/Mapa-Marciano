@@ -3,13 +3,29 @@ import RoverRuta from '../../rover/rover_ruta.js';
 
 export const RADIO_MARTE_KM = 3389.5; // Radio volumétrico medio de Marte
 
-// Tres capas WMTS oficiales de NASA Mars Trek provistas por el usuario
+// Cuatro capas oficiales: Mapa Principal NASA Mars Trek (Viking MDIM 2.1) y 3 Mapas Secundarios (Relieve, Polvo y Térmico)
 export const CAPAS_MARTE = [
   {
+    id: 'Mars_Viking_MDIM21_ClrMosaic_global_232m',
+    tipo: 'wmts',
+    esPrincipal: true,
+    nombre: 'Mapa Principal: Viking MDIM 2.1 Color Mosaic (NASA Mars Trek)',
+    etiquetaCorta: 'Viking MDIM 2.1',
+    descripcion: 'Mosaico global colorizado Viking MDIM 2.1 oficial de NASA Trek a 232 m/píxel.',
+    wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/WMTSCapabilities.xml',
+    tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
+    fallbackExt: 'png',
+    minZoom: 1,
+    maxZoom: 6,
+    colorTema: '#f59e0b'
+  },
+  {
     id: 'Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw',
-    nombre: 'Mars MOLA (Relieve Sombreado a Color)',
-    etiquetaCorta: 'MOLA Relieve Color',
-    descripcion: 'Mosaico combinado de MOLA (MGS) y HRSC (Mars Express) a 200 m/píxel con sombreado de relieve topográfico en color.',
+    tipo: 'wmts',
+    esSecundario: true,
+    nombre: 'Mapa Secundario: MOLA Relieve Topográfico',
+    etiquetaCorta: 'Relieve',
+    descripcion: 'Mosaico combinado de MOLA (MGS) y HRSC (Mars Express) con sombreado topográfico de relieve en color y cotas de altimetría.',
     wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw/1.0.0/WMTSCapabilities.xml',
     tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw/1.0.0/default/default028mm/{z}/{y}/{x}.png',
     fallbackExt: 'jpg',
@@ -18,28 +34,32 @@ export const CAPAS_MARTE = [
     colorTema: '#e07a5f'
   },
   {
-    id: 'TES_Thermal_Inertia',
-    nombre: 'TES, Inercia Térmica',
-    etiquetaCorta: 'TES Inercia Térmica',
-    descripcion: 'Mapa global de inercia térmica obtenido por el instrumento TES (Mars Global Surveyor). Permite distinguir entre polvo fino, arena y roca sólida.',
-    wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Thermal_Inertia/1.0.0/WMTSCapabilities.xml',
-    tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Thermal_Inertia/1.0.0/default/default028mm/{z}/{y}/{x}.png',
-    fallbackExt: 'jpg',
-    minZoom: 1,
-    maxZoom: 5,
-    colorTema: '#3d5a80'
-  },
-  {
     id: 'TES_Dust',
-    nombre: 'TES, Polvo Marciano',
-    etiquetaCorta: 'TES Polvo',
-    descripcion: 'Distribución y abundancia de polvo en la superficie de Marte registrada por el espectrómetro de emisión térmica TES.',
+    tipo: 'wmts',
+    esSecundario: true,
+    nombre: 'Mapa Secundario: TES Polvo Marciano',
+    etiquetaCorta: 'Polvo',
+    descripcion: 'Distribución y opacidad atmosférica de polvo en la superficie de Marte registrada por el espectrómetro de emisión térmica TES.',
     wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Dust/1.0.0/WMTSCapabilities.xml',
     tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Dust/1.0.0/default/default028mm/{z}/{y}/{x}.png',
     fallbackExt: 'jpg',
     minZoom: 1,
     maxZoom: 5,
     colorTema: '#ee6c4d'
+  },
+  {
+    id: 'TES_Thermal_Inertia',
+    tipo: 'wmts',
+    esSecundario: true,
+    nombre: 'Mapa Secundario: TES Inercia Térmica',
+    etiquetaCorta: 'Térmico',
+    descripcion: 'Inercia térmica obtenida por el instrumento TES (Mars Global Surveyor) para distinguir variaciones térmicas de grano, roca y regolito.',
+    wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Thermal_Inertia/1.0.0/WMTSCapabilities.xml',
+    tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Thermal_Inertia/1.0.0/default/default028mm/{z}/{y}/{x}.png',
+    fallbackExt: 'jpg',
+    minZoom: 1,
+    maxZoom: 5,
+    colorTema: '#3d5a80'
   }
 ];
 

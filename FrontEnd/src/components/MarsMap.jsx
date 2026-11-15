@@ -28,6 +28,7 @@ export default function MarsMap({
   const [mapaListo, setMapaListo] = useState(false);
   const [coordenadasCursor, setCoordenadasCursor] = useState(null);
   const [zoomActual, setZoomActual] = useState(1);
+  const [panelSecundarioAbierto, setPanelSecundarioAbierto] = useState(false);
 
   const capaActiva = CAPAS_MARTE.find((c) => c.id === capaActivaId) || CAPAS_MARTE[0];
 
@@ -116,7 +117,7 @@ export default function MarsMap({
     };
   }, [mapaListo]);
 
-  // 3. Actualizar la capa de mosaicos WMTS de NASA Trek al cambiar capaActiva
+  // 3. Actualizar la capa de mapa WMTS de NASA Trek al cambiar capaActiva
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L) return;
     const L = window.L;
@@ -132,7 +133,9 @@ export default function MarsMap({
         const tile = document.createElement('img');
         L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
         L.DomEvent.on(tile, 'error', (err) => {
-          if (tile.src.includes('.png')) {
+          if (tile.src.includes('.jpg')) {
+            tile.src = tile.src.replace('.jpg', '.png');
+          } else if (tile.src.includes('.png')) {
             tile.src = tile.src.replace('.png', '.jpg');
           } else {
             this._tileOnError(done, tile, err);
@@ -161,7 +164,7 @@ export default function MarsMap({
     tileLayerRef.current = tileLayer;
   }, [capaActiva, mapaListo]);
 
-  // 4. Marcadores de referencia para los 25 puntos marcianos
+  // 4. Marcadores de referencia para los 25 puntos marcianos con sus nombres visibles
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L) return;
     const L = window.L;
@@ -184,12 +187,18 @@ export default function MarsMap({
           color: '#ffffff',
           weight: 1.5,
           fillColor: '#ea580c',
-          fillOpacity: 0.8
+          fillOpacity: 0.9
         });
 
+        // Nombre de cada punto visible permanentemente en el mapa
         marker.bindTooltip(
-          `<strong>${p.nombre}</strong><br><span style="font-size:11px;color:#94a3b8">${formatearCoordenadas(p.lat, p.lon)}</span>`,
-          { direction: 'top', offset: [0, -3] }
+          `<strong>${p.nombre}</strong>`,
+          {
+            permanent: true,
+            direction: 'bottom',
+            className: 'mars-point-permanent-label',
+            offset: [0, 6]
+          }
         );
 
         marker.on('click', (e) => {
@@ -336,6 +345,16 @@ export default function MarsMap({
         </div>
       `);
 
+      marker.bindTooltip(
+        `<strong>${origen.nombre}</strong>`,
+        {
+          permanent: true,
+          direction: 'bottom',
+          className: 'mars-point-permanent-label mars-point-origin-label',
+          offset: [0, 16]
+        }
+      );
+
       marker.on('dragend', (e) => {
         const pos = e.target.getLatLng();
         onSelectOrigen({
@@ -365,6 +384,16 @@ export default function MarsMap({
           <span style="color: #64748b; font-family: monospace;">${formatearCoordenadas(destino.lat, destino.lon)}</span>
         </div>
       `);
+
+      marker.bindTooltip(
+        `<strong>${destino.nombre}</strong>`,
+        {
+          permanent: true,
+          direction: 'bottom',
+          className: 'mars-point-permanent-label mars-point-destination-label',
+          offset: [0, 16]
+        }
+      );
 
       marker.on('dragend', (e) => {
         const pos = e.target.getLatLng();
@@ -487,24 +516,42 @@ export default function MarsMap({
             <span>{modoSeleccion === 'destino' ? 'Fijando Destino...' : '2. Fijar Destino'}</span>
           </button>
 
-          {/* Botones para alternar entre las 3 capas */}
-          <div className="layers-button-group" role="tablist" aria-label="Capas de Marte">
-            {CAPAS_MARTE.map((capa) => {
-              const activa = capa.id === capaActivaId;
-              return (
-                <button
-                  key={capa.id}
-                  type="button"
-                  className={`layer-btn ${activa ? 'active' : ''}`}
-                  onClick={() => onChangeCapa(capa.id)}
-                  title={capa.descripcion}
-                >
-                  <span className="layer-indicator-dot" style={{ background: capa.colorTema }} />
-                  {capa.etiquetaCorta}
-                </button>
-              );
-            })}
-          </div>
+          {/* Botón Mapa Principal NASA Mars Trek (Viking MDIM 2.1) */}
+          <button
+            type="button"
+            className={`layer-btn btn-principal-map ${capaActivaId === 'Mars_Viking_MDIM21_ClrMosaic_global_232m' ? 'active' : ''}`}
+            onClick={() => {
+              onChangeCapa('Mars_Viking_MDIM21_ClrMosaic_global_232m');
+              setPanelSecundarioAbierto(false);
+            }}
+            title="Mapa Principal NASA Trek Viking MDIM 2.1 (232m Color Mosaic)"
+          >
+            <span className="layer-indicator-dot" style={{ background: '#f59e0b' }} />
+            <span>Mapa Principal Viking MDIM 2.1</span>
+          </button>
+
+          {/* Botón para deslizar los 3 Mapas Secundarios (Relieve, Polvo y Térmico) */}
+          <button
+            type="button"
+            className={`layer-btn btn-toggle-secondary ${panelSecundarioAbierto || capaActiva.esSecundario ? 'active' : ''}`}
+            onClick={() => setPanelSecundarioAbierto(!panelSecundarioAbierto)}
+            title="Desplegar pestaña deslizante con los 3 mapas secundarios (Relieve, Polvo y Térmico)"
+            aria-expanded={panelSecundarioAbierto}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 17 12 22 22 17" />
+              <polyline points="2 12 12 17 22 12" />
+            </svg>
+            <span>Mapas Secundarios</span>
+            {capaActiva.esSecundario ? (
+              <span className="active-tag-chip" style={{ background: capaActiva.colorTema }}>
+                {capaActiva.etiquetaCorta}
+              </span>
+            ) : (
+              <span className="badge-count-pill">3</span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -518,9 +565,93 @@ export default function MarsMap({
         {!mapaListo && (
           <div className="map-loading-overlay">
             <div className="mars-spinner" />
-            <p>Conectando con servidores de mosaicos de Marte...</p>
+            <p>Conectando con servidores cartográficos de Marte (USGS / NASA)...</p>
           </div>
         )}
+
+        {/* Pestaña deslizante para los 3 Mapas Secundarios: Relieve, Polvo y Térmico */}
+        <aside
+          className={`sliding-secondary-panel ${panelSecundarioAbierto ? 'is-open' : ''}`}
+          aria-label="Pestaña deslizante de mapas secundarios de Marte"
+        >
+          <div className="panel-slide-header">
+            <div className="panel-header-title">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+              </svg>
+              <h4>Mapas Secundarios</h4>
+            </div>
+            <button
+              type="button"
+              className="btn-close-slide-panel"
+              onClick={() => setPanelSecundarioAbierto(false)}
+              title="Cerrar pestaña deslizante"
+              aria-label="Cerrar pestaña deslizante"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <p className="panel-slide-info">
+            Haga clic para alternar entre los <strong>3 mapas secundarios temáticos</strong> sobre la superficie de Marte:
+          </p>
+
+          <div className="secondary-maps-cards-list">
+            {/* Los 3 mapas secundarios temáticos provistos */}
+            {CAPAS_MARTE.filter((c) => c.esSecundario).map((capa) => {
+              const esActiva = capaActivaId === capa.id;
+              return (
+                <div
+                  key={capa.id}
+                  className={`secondary-map-card ${esActiva ? 'is-selected' : ''}`}
+                  onClick={() => onChangeCapa(capa.id)}
+                >
+                  <div className="map-card-head">
+                    <span className="map-card-badge" style={{ backgroundColor: capa.colorTema }}>
+                      {capa.etiquetaCorta}
+                    </span>
+                    {esActiva && <span className="map-active-badge">Activo</span>}
+                  </div>
+                  <h5 className="map-card-name">{capa.nombre}</h5>
+                  <p className="map-card-desc">{capa.descripcion}</p>
+                  <button
+                    type="button"
+                    className={`btn-choose-secondary ${esActiva ? 'btn-current' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChangeCapa(capa.id);
+                      setPanelSecundarioAbierto(false);
+                    }}
+                  >
+                    {esActiva ? 'Visualizándose en Mapa' : `Desplegar ${capa.etiquetaCorta}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Opción rápida para volver al mapa principal NASA Trek Viking MDIM 2.1 */}
+          <div className="panel-slide-footer">
+            <button
+              type="button"
+              className={`btn-return-principal ${capaActivaId === 'Mars_Viking_MDIM21_ClrMosaic_global_232m' ? 'is-principal-active' : ''}`}
+              onClick={() => {
+                onChangeCapa('Mars_Viking_MDIM21_ClrMosaic_global_232m');
+                setPanelSecundarioAbierto(false);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              </svg>
+              <span>Volver al Mapa Principal Viking MDIM 2.1</span>
+            </button>
+          </div>
+        </aside>
 
         {/* Banner de instrucción para selección interactiva */}
         {modoSeleccion && (
@@ -542,29 +673,37 @@ export default function MarsMap({
           </div>
         )}
 
-        {/* Badges flotantes de Origen y Destino fijados */}
-        <div className="map-floating-status">
+        {/* Pestañas flotantes de Origen y Destino movidas a la esquina inferior derecha */}
+        <div className="map-floating-status corner-bottom-right" aria-label="Puntos de origen y destino">
           <div className="floating-point-chip chip-origen">
-            <span className="chip-dot dot-origen" />
-            <span className="chip-role">Origen:</span>
-            <strong>{origen ? origen.nombre : 'Sin fijar'}</strong>
-            {origen && (
-              <span className="chip-coords">({formatearCoordenadas(origen.lat, origen.lon)})</span>
-            )}
+            <div className="chip-left-indicator">
+              <span className="dot dot-origen" />
+              <span className="chip-role">Origen:</span>
+            </div>
+            <div className="chip-right-details">
+              <strong>{origen ? origen.nombre : 'Sin fijar'}</strong>
+              {origen && (
+                <span className="chip-coords">{formatearCoordenadas(origen.lat, origen.lon)}</span>
+              )}
+            </div>
           </div>
 
           <div className="floating-point-chip chip-destino">
-            <span className="chip-dot dot-destino" />
-            <span className="chip-role">Destino:</span>
-            <strong>{destino ? destino.nombre : 'Sin fijar'}</strong>
-            {destino && (
-              <span className="chip-coords">({formatearCoordenadas(destino.lat, destino.lon)})</span>
-            )}
+            <div className="chip-left-indicator">
+              <span className="dot dot-destino" />
+              <span className="chip-role">Destino:</span>
+            </div>
+            <div className="chip-right-details">
+              <strong>{destino ? destino.nombre : 'Sin fijar'}</strong>
+              {destino && (
+                <span className="chip-coords">{formatearCoordenadas(destino.lat, destino.lon)}</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Telemetría de coordenadas bajo el cursor en tiempo real */}
-        <div className="cursor-telemetry-badge" aria-live="off">
+        {/* Telemetría de coordenadas bajo el cursor en tiempo real (esquina inferior izquierda) */}
+        <div className="cursor-telemetry-badge corner-bottom-left" aria-live="off">
           {coordenadasCursor ? (
             <span>
               Lat: {coordenadasCursor.lat.toFixed(2)}° | Lon: {coordenadasCursor.lon.toFixed(2)}°
@@ -574,10 +713,10 @@ export default function MarsMap({
           )}
         </div>
 
-        {/* Botón flotante para reenfocar la vista */}
+        {/* Botón flotante para reenfocar la vista (esquina superior derecha) */}
         <button
           type="button"
-          className="map-recenter-btn"
+          className="map-recenter-btn corner-top-right"
           onClick={handleAjustarVista}
           title="Centrar y ajustar vista a los puntos"
           aria-label="Centrar y ajustar vista a los puntos"

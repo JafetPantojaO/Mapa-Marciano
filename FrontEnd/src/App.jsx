@@ -63,6 +63,7 @@ function App() {
     }
   });
   const [rutaActivaId, setRutaActivaId] = useState('optima');
+  const [mostrarOverlayRutas, setMostrarOverlayRutas] = useState(false);
 
   // Manejador del Login
   const handleLogin = (e) => {
@@ -199,6 +200,8 @@ function App() {
     if (res.rutas && res.rutas.length > 0) {
       setRutaActivaId(res.rutas[0].id);
     }
+    // Sobreponer inmediatamente la lista de rutas para que el usuario no tenga que bajar
+    setMostrarOverlayRutas(true);
   };
 
 
@@ -211,6 +214,7 @@ function App() {
     setErrorLogin('');
     setResultadoRutas(null);
     setRutaActivaId(null);
+    setMostrarOverlayRutas(false);
     try {
       localStorage.removeItem('astronauta_id');
     } catch {
@@ -645,10 +649,10 @@ function App() {
                     )}
                   </div>
 
-                  {/* Perfil de carga del Rover y Objetivo de Misión */}
+                  {/* Perfil de carga y Objetivo de Misión */}
                   <div className="param-block">
                     <div className="param-block-header">
-                      <span className="param-title">Perfil de Carga del Rover</span>
+                      <span className="param-title">Perfil de carga</span>
                       <span className="param-hint">Restricciones mecánicas y térmicas de la misión</span>
                     </div>
 
@@ -662,36 +666,69 @@ function App() {
                           onChange={() => setPerfilCarga('delicada')}
                         />
                         <div className="profile-card-content">
-                          <strong>Instrumentos Delicados</strong>
-                          <small>Límite: pend. 10°, viento 20 m/s, polvo 2.0 tau, temp. -20° a 30°C</small>
+                          <div className="profile-option-head">
+                            <strong>Instrumentos Delicados</strong>
+                            {llevaEquipo === 'si' && (
+                              <span className="badge-required-locked">Requerido por instrumental</span>
+                            )}
+                          </div>
+                          <small>Límite estricto: pend. 10°, viento 20 m/s, polvo 2.0 tau, temp. -20° a 30°C</small>
                         </div>
                       </label>
 
-                      <label className={`profile-card-option ${perfilCarga === 'normal' ? 'active' : ''}`}>
+                      <label className={`profile-card-option ${perfilCarga === 'normal' ? 'active' : ''} ${llevaEquipo === 'si' ? 'option-locked-disabled' : ''}`}>
                         <input
                           type="radio"
                           name="perfilCarga"
                           value="normal"
                           checked={perfilCarga === 'normal'}
-                          onChange={() => setPerfilCarga('normal')}
+                          disabled={llevaEquipo === 'si'}
+                          onChange={() => {
+                            if (llevaEquipo !== 'si') {
+                              setPerfilCarga('normal');
+                            }
+                          }}
                         />
                         <div className="profile-card-content">
-                          <strong>Carga Normal</strong>
-                          <small>Límite: pend. 20°, vientos moderados, suspensión estándar</small>
+                          <div className="profile-option-head">
+                            <strong>Carga Normal</strong>
+                            {llevaEquipo === 'si' && (
+                              <span className="badge-locked">Bloqueado</span>
+                            )}
+                          </div>
+                          <small>
+                            {llevaEquipo === 'si'
+                              ? 'Bloqueado: se transporta material científico a bordo'
+                              : 'Límite: pend. 20°, vientos moderados, suspensión estándar'}
+                          </small>
                         </div>
                       </label>
 
-                      <label className={`profile-card-option ${perfilCarga === 'ninguna' ? 'active' : ''}`}>
+                      <label className={`profile-card-option ${perfilCarga === 'ninguna' ? 'active' : ''} ${llevaEquipo === 'si' ? 'option-locked-disabled' : ''}`}>
                         <input
                           type="radio"
                           name="perfilCarga"
                           value="ninguna"
                           checked={perfilCarga === 'ninguna'}
-                          onChange={() => setPerfilCarga('ninguna')}
+                          disabled={llevaEquipo === 'si'}
+                          onChange={() => {
+                            if (llevaEquipo !== 'si') {
+                              setPerfilCarga('ninguna');
+                            }
+                          }}
                         />
                         <div className="profile-card-content">
-                          <strong>Sin Carga Especial</strong>
-                          <small>Máxima tolerancia a pendientes de hasta 25° y vientos de 30 m/s</small>
+                          <div className="profile-option-head">
+                            <strong>Sin Carga Especial</strong>
+                            {llevaEquipo === 'si' && (
+                              <span className="badge-locked">Bloqueado</span>
+                            )}
+                          </div>
+                          <small>
+                            {llevaEquipo === 'si'
+                              ? 'Bloqueado: se transporta material científico a bordo'
+                              : 'Máxima tolerancia a pendientes de hasta 25° y vientos de 30 m/s'}
+                          </small>
                         </div>
                       </label>
                     </div>
@@ -727,191 +764,239 @@ function App() {
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
-                    <span>Calcular y Evaluar Rutas del Rover</span>
+                    <span>Calcular y Evaluar</span>
                   </button>
                 </div>
               </form>
             </div>
           </section>
 
-          {/* SECCIÓN 3: LISTA DE RUTAS CON PEQUEÑOS MAPAS Y EVALUACIÓN DE FACTORES (PROS Y CONTRAS) */}
-          {resultadoRutas && resultadoRutas.rutas && (
-            <section className="routes-comparison-section" aria-label="Lista de Rutas Evaluadas">
-              <div className="comparison-header">
-                <div>
-                  <span className="comparison-badge">ANÁLISIS MULTICRITERIO DE NAVEGACIÓN</span>
-                  <h3 className="comparison-title">
-                    Lista de Rutas Disponibles para el Rover
-                  </h3>
-                  <p className="comparison-subtitle">
-                    Cada ruta considera los factores de <strong>Superficie</strong> (pendiente y relieve), <strong>Tiempo Atmosférico</strong> (viento y opacidad de polvo), <strong>Térmico</strong> (rango térmico diurno/nocturno) y <strong>Material Científico</strong> a bordo con sus respectivos pros y contras.
-                  </p>
-                </div>
-                {rutaActiva && (
-                  <div className="active-route-pill">
-                    <span>Ruta Proyectada en Mapa:</span>
-                    <strong style={{ color: rutaActiva.color }}>{rutaActiva.nombre}</strong>
+          {/* APARTADO SOBREPUESTO (OVERLAY MODAL) DE LISTA DE RUTAS: SE SOBREPONE AL CALCULAR Y NO HACE BAJAR AL USUARIO */}
+          {mostrarOverlayRutas && resultadoRutas && resultadoRutas.rutas && (
+            <div
+              className="overlay-routes-backdrop"
+              onClick={() => setMostrarOverlayRutas(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Lista de rutas disponibles sobrepuesta"
+            >
+              <div
+                className="overlay-routes-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="overlay-routes-header">
+                  <div className="overlay-title-group">
+                    <div className="overlay-badge-row">
+                      <span className="badge-overlay-tag">EVALUACIÓN COMPARATIVA MULTICRITERIO</span>
+                      <span className="badge-best-indicator">1 Mejor Ruta (Recomendada)</span>
+                      <span className="badge-worst-indicator">1 Peor Ruta (Alto Riesgo)</span>
+                    </div>
+                    <h3 className="overlay-main-title">
+                      Lista de Rutas Disponibles
+                    </h3>
+                    <p className="overlay-subtitle">
+                      Se han generado <strong>{resultadoRutas.rutas.length} rutas diferentes</strong>. Cada una cuenta con trayectorias y paradas únicas. Compare la mejor ruta frente a la peor opción con sus respectivos pros y contras.
+                    </p>
                   </div>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    className="btn-close-overlay"
+                    onClick={() => setMostrarOverlayRutas(false)}
+                    title="Cerrar vista superpuesta y volver al mapa"
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    <span>Cerrar</span>
+                  </button>
+                </div>
 
-              {/* Grid de pequeños mapas con la ruta dibujada y pros/contras */}
-              <div className="routes-cards-grid">
-                {resultadoRutas.rutas.map((r) => {
-                  const esSeleccionada = rutaActivaId === r.id;
-                  return (
-                    <article
-                      key={r.id}
-                      className={`route-card-item ${esSeleccionada ? 'is-selected' : ''}`}
-                    >
-                      {/* Pequeño mapa de la ruta dibujada */}
-                      <div className="mini-map-wrapper">
-                        <MiniRouteMap route={r} isSelected={esSeleccionada} />
-                        <div className="mini-map-floating-tag">
-                          <span className="route-strategy-badge" style={{ backgroundColor: r.color }}>
-                            {r.badge}
-                          </span>
-                        </div>
-                      </div>
+                <div className="overlay-routes-body">
+                  <div className="routes-cards-grid">
+                    {resultadoRutas.rutas.map((r) => {
+                      const esSeleccionada = rutaActivaId === r.id;
+                      const esMejor = r.tipoEvaluacion === 'mejor';
+                      const esPeor = r.tipoEvaluacion === 'peor';
 
-                      {/* Contenido analítico de la tarjeta */}
-                      <div className="route-card-body">
-                        <div className="route-title-line">
-                          <h4 className="route-variant-name">{r.nombre}</h4>
-                          <div className="safety-score-badge" title="Puntuación de seguridad global">
-                            <span>Score:</span>
-                            <strong>{r.score}/100</strong>
-                          </div>
-                        </div>
-
-                        <p className="route-card-desc">{r.descripcionCorta}</p>
-
-                        {/* Métricas clave */}
-                        <div className="route-metrics-bar">
-                          <div className="metric-cell">
-                            <span className="metric-label">Distancia</span>
-                            <span className="metric-val">{r.distanciaKm.toLocaleString()} km</span>
-                          </div>
-                          <div className="metric-cell">
-                            <span className="metric-label">Tiempo Est.</span>
-                            <span className="metric-val">{r.horasEstimadas} h</span>
-                          </div>
-                          <div className="metric-cell">
-                            <span className="metric-label">Paradas</span>
-                            <span className="metric-val">{r.paradas.length} zonas</span>
-                          </div>
-                        </div>
-
-                        {/* Desglose de Factores: Superficie, Clima, Térmico, Material Científico */}
-                        <div className="route-factors-breakdown">
-                          {/* Superficie */}
-                          <div className="factor-row">
-                            <span className="factor-name">
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M8 3l4 8 5-5 5 15H2L8 3z" />
-                              </svg>
-                              Superficie:
-                            </span>
-                            <span className="factor-detail">
-                              Pendiente máx: <strong>{r.factores.superficie.pendienteMax.toFixed(1)}°</strong> (prom: {r.factores.superficie.pendienteProm.toFixed(1)}°) &bull; {r.factores.superficie.estado}
-                            </span>
-                          </div>
-
-                          {/* Tiempo Atmosférico */}
-                          <div className="factor-row">
-                            <span className="factor-name">
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
-                              </svg>
-                              Clima Marciano:
-                            </span>
-                            <span className="factor-detail">
-                              Viento máx: <strong>{r.factores.clima.vientoMax.toFixed(1)} m/s</strong> &bull; Polvo: {r.factores.clima.polvoProm.toFixed(2)} tau ({r.factores.clima.estado})
-                            </span>
-                          </div>
-
-                          {/* Térmico */}
-                          <div className="factor-row">
-                            <span className="factor-name">
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
-                              </svg>
-                              Térmico:
-                            </span>
-                            <span className="factor-detail">
-                              Rango: <strong>{r.factores.termico.tMin}°C a {r.factores.termico.tMax}°C</strong> (&Delta; {r.factores.termico.oscilacion}°C)
-                            </span>
-                          </div>
-
-                          {/* Material Científico */}
-                          {llevaEquipo === 'si' && (
-                            <div className="factor-row factor-instrument-row">
-                              <span className="factor-name">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" />
-                                  <polygon points="12 6 15 11 20 12 16 16 17 21 12 18 7 21 8 16 4 12 9 11 12 6" />
-                                </svg>
-                                Mat. Científico:
-                              </span>
-                              <span className="factor-detail">
-                                {r.factores.materialCientifico.diagnostico}
-                              </span>
+                      return (
+                        <article
+                          key={r.id}
+                          className={`route-card-item ${esSeleccionada ? 'is-selected' : ''} ${
+                            esMejor ? 'card-is-best' : esPeor ? 'card-is-worst' : 'card-is-alt'
+                          }`}
+                        >
+                          {/* Banner superior de clasificación */}
+                          {esMejor && (
+                            <div className="card-eval-banner eval-best-banner">
+                              <span>MEJOR RUTA RECOMENDADA (MÁXIMA SEGURIDAD)</span>
                             </div>
                           )}
-                        </div>
-
-                        {/* Pros y Contras */}
-                        <div className="pros-cons-container">
-                          <div className="pros-block">
-                            <span className="pro-header">Ventajas (Pros):</span>
-                            <ul className="pro-list">
-                              {r.pros.map((p, i) => (
-                                <li key={i}>{p}</li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <div className="cons-block">
-                            <span className="con-header">Desventajas (Contras):</span>
-                            <ul className="con-list">
-                              {r.contras.map((c, i) => (
-                                <li key={i}>{c}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-
-                        {/* Waypoints */}
-                        <div className="waypoints-summary">
-                          <span className="waypoints-label">Waypoints:</span>
-                          <span className="waypoints-names">
-                            {r.paradas.map((p) => p.nombre).join(' &rarr; ')}
-                          </span>
-                        </div>
-
-                        {/* Botón de Selección */}
-                        <button
-                          type="button"
-                          className={`btn-select-route ${esSeleccionada ? 'btn-selected' : ''}`}
-                          onClick={() => setRutaActivaId(r.id)}
-                        >
-                          {esSeleccionada ? (
-                            <>
-                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              <span>Ruta Seleccionada para la Misión</span>
-                            </>
-                          ) : (
-                            <span>Elegir esta ruta y ver en mapa principal</span>
+                          {esPeor && (
+                            <div className="card-eval-banner eval-worst-banner">
+                              <span>PEOR RUTA IDENTIFICADA (ALTO RIESGO / DESACONSEJADA)</span>
+                            </div>
                           )}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
+
+                          {/* Pequeño mapa de la ruta dibujada */}
+                          <div className="mini-map-wrapper">
+                            <MiniRouteMap route={r} isSelected={esSeleccionada} />
+                            <div className="mini-map-floating-tag">
+                              <span className="route-strategy-badge" style={{ backgroundColor: r.color }}>
+                                {r.badge}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Contenido analítico de la tarjeta */}
+                          <div className="route-card-body">
+                            <div className="route-title-line">
+                              <h4 className="route-variant-name">{r.nombre}</h4>
+                              <div
+                                className={`safety-score-badge ${esMejor ? 'score-best' : esPeor ? 'score-worst' : ''}`}
+                                title="Puntuación de seguridad global"
+                              >
+                                <span>Score:</span>
+                                <strong>{r.score}/100</strong>
+                              </div>
+                            </div>
+
+                            <p className="route-card-desc">{r.descripcionCorta}</p>
+
+                            {esPeor && (
+                              <div className="route-danger-callout" role="alert">
+                                <strong>ADVERTENCIA DE SEGURIDAD:</strong> Atraviesa pendientes severas, frío extremo y corredores de tormentas de polvo. Riesgo crítico para el rover y los instrumentos.
+                              </div>
+                            )}
+
+                            {/* Métricas clave */}
+                            <div className="route-metrics-bar">
+                              <div className="metric-cell">
+                                <span className="metric-label">Distancia</span>
+                                <span className="metric-val">{r.distanciaKm.toLocaleString()} km</span>
+                              </div>
+                              <div className="metric-cell">
+                                <span className="metric-label">Tiempo Est.</span>
+                                <span className="metric-val">{r.horasEstimadas.toLocaleString()} h</span>
+                              </div>
+                              <div className="metric-cell">
+                                <span className="metric-label">Paradas</span>
+                                <span className="metric-val">{r.paradas.length} zonas</span>
+                              </div>
+                            </div>
+
+                            {/* Desglose de Factores */}
+                            <div className="route-factors-breakdown">
+                              <div className="factor-row">
+                                <span className="factor-name">
+                                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M8 3l4 8 5-5 5 15H2L8 3z" />
+                                  </svg>
+                                  Superficie:
+                                </span>
+                                <span className="factor-detail">
+                                  Pendiente máx: <strong>{r.factores.superficie.pendienteMax.toFixed(1)}°</strong> (prom: {r.factores.superficie.pendienteProm.toFixed(1)}°) &bull; {r.factores.superficie.estado}
+                                </span>
+                              </div>
+
+                              <div className="factor-row">
+                                <span className="factor-name">
+                                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
+                                  </svg>
+                                  Clima Marciano:
+                                </span>
+                                <span className="factor-detail">
+                                  Viento máx: <strong>{r.factores.clima.vientoMax.toFixed(1)} m/s</strong> &bull; Polvo: {r.factores.clima.polvoProm.toFixed(2)} tau ({r.factores.clima.estado})
+                                </span>
+                              </div>
+
+                              <div className="factor-row">
+                                <span className="factor-name">
+                                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                                  </svg>
+                                  Térmico:
+                                </span>
+                                <span className="factor-detail">
+                                  Rango: <strong>{r.factores.termico.tMin}°C a {r.factores.termico.tMax}°C</strong> (&Delta; {r.factores.termico.oscilacion}°C)
+                                </span>
+                              </div>
+
+                              {llevaEquipo === 'si' && (
+                                <div className="factor-row factor-instrument-row">
+                                  <span className="factor-name">
+                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <polygon points="12 6 15 11 20 12 16 16 17 21 12 18 7 21 8 16 4 12 9 11 12 6" />
+                                    </svg>
+                                    Mat. Científico:
+                                  </span>
+                                  <span className="factor-detail">
+                                    {r.factores.materialCientifico.diagnostico}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Pros y Contras */}
+                            <div className="pros-cons-container">
+                              <div className="pros-block">
+                                <span className="pro-header">Ventajas (Pros):</span>
+                                <ul className="pro-list">
+                                  {r.pros.map((p, i) => (
+                                    <li key={i}>{p}</li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              <div className="cons-block">
+                                <span className="con-header">Desventajas (Contras):</span>
+                                <ul className="con-list">
+                                  {r.contras.map((c, i) => (
+                                    <li key={i}>{c}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+
+                            {/* Waypoints */}
+                            <div className="waypoints-summary">
+                              <span className="waypoints-label">Waypoints:</span>
+                              <span className="waypoints-names">
+                                {r.paradas.map((p) => p.nombre).join(' → ')}
+                              </span>
+                            </div>
+
+                            {/* Botón de Selección que además cierra overlay y centra mapa */}
+                            <button
+                              type="button"
+                              className={`btn-select-route ${esSeleccionada ? 'btn-selected' : ''}`}
+                              onClick={() => {
+                                setRutaActivaId(r.id);
+                                setMostrarOverlayRutas(false);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                            >
+                              {esSeleccionada ? (
+                                <>
+                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  <span>Ruta Seleccionada &bull; Proyectada en Mapa</span>
+                                </>
+                              ) : (
+                                <span>Elegir esta ruta y ver en mapa principal</span>
+                              )}
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </section>
+            </div>
           )}
         </main>
       )}

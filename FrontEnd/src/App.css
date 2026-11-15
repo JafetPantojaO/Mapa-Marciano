@@ -166,13 +166,13 @@
   box-shadow: 0 0 0 2px #1d4ed8 !important;
 }
 
-/* Botón con texto "iniciar seccion", bordes rectangulares y color sólido */
+/* Botón con texto "iniciar seccion", bordes rectangulares y mismo color sobrio unificado */
 .btn-login-rectangular {
   height: 44px;
   border-radius: 0 !important; /* Rectangular */
-  background: #1d4ed8 !important; /* Azul sólido */
-  border: 1px solid #3b82f6 !important;
-  color: #ffffff !important;
+  background: #1e293b !important; /* Mismo color sobrio no chillante */
+  border: 1px solid #475569 !important;
+  color: #f8fafc !important;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -187,8 +187,9 @@
 }
 
 .btn-login-rectangular:hover {
-  background: #2563eb !important;
-  border-color: #60a5fa !important;
+  background: #334155 !important;
+  border-color: #64748b !important;
+  color: #ffffff !important;
 }
 
 .login-solid-rectangular .alert-banner {
@@ -208,30 +209,41 @@
 }
 
 /* --------------------------------------------------------------------------
-   3. BOTONES PRIMARIOS Y ACCIONES
+   3. BOTONES Y FORMATO UNIFICADO: RECTANGULARES, MISMO COLOR, SIN EFECTOS LED NI TONOS CHILLANTES
    -------------------------------------------------------------------------- */
+
+button,
+.btn,
+[class*="btn-"],
+.layer-btn {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
 
 .btn-primary-action {
   height: 44px;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius-sm);
-  color: #ffffff;
+  background: #1e293b !important;
+  border: 1px solid #475569 !important;
+  border-radius: 0 !important;
+  color: #f8fafc !important;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  box-shadow: none !important;
+  transition: all 140ms ease;
 }
 
 .btn-primary-action:hover {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
-  transform: translateY(-1px);
+  background: #334155 !important;
+  border-color: #64748b !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -369,7 +381,7 @@
 .mars-map-wrapper.full-width-hero {
   background: #0a0f1d;
   border: 1px solid #1e293b;
-  border-radius: var(--radius-lg);
+  border-radius: 0 !important; /* Bordes estrictamente rectangulares */
   overflow: hidden;
   box-shadow: var(--shadow-card);
   display: flex;
@@ -530,48 +542,318 @@
   cursor: crosshair !important;
 }
 
-/* Chips flotantes de origen y destino en el mapa */
-.map-floating-status {
+/* Pestaña deslizante para los 3 Mapas Secundarios (Relieve, Polvo, Térmico) */
+.sliding-secondary-panel {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 90%;
+  background: rgba(8, 13, 26, 0.97);
+  border-left: 1px solid #334155;
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(14px);
+  z-index: 850;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  transform: translateX(100%);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 0 !important;
+}
+
+.sliding-secondary-panel.is-open {
+  transform: translateX(0);
+}
+
+.panel-slide-header {
+  padding: 14px 18px;
+  background: #0d1527;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f8fafc;
+}
+
+.panel-header-title h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.btn-close-slide-panel {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 0 !important;
+  transition: all 140ms ease;
+}
+
+.btn-close-slide-panel:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.panel-slide-info {
+  margin: 0;
+  padding: 12px 18px 6px;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.secondary-maps-cards-list {
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.secondary-map-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #1e293b;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 160ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 0 !important;
+}
+
+.secondary-map-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.secondary-map-card.is-selected {
+  border-color: #60a5fa;
+  background: rgba(37, 99, 235, 0.14);
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.2);
+}
+
+.map-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.map-card-badge {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  border-radius: 0 !important;
+}
+
+.map-active-badge {
+  font-size: 10px;
+  color: #10b981;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(16, 185, 129, 0.15);
+  padding: 2px 6px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 0 !important;
+}
+
+.map-card-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.map-card-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.btn-choose-secondary {
+  align-self: flex-start;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0 !important;
+  transition: all 140ms ease;
+}
+
+.btn-choose-secondary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.btn-choose-secondary.btn-current {
+  background: #10b981;
+  border-color: #10b981;
+  color: #042f2e;
+}
+
+.panel-slide-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #1e293b;
+  background: #090e1c;
+}
+
+.btn-return-principal {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0 !important;
+  transition: all 140ms ease;
+}
+
+.btn-return-principal:hover,
+.btn-return-principal.is-principal-active {
+  background: #f59e0b;
+  color: #04101e;
+  border-color: #f59e0b;
+}
+
+/* Indicadores y botones especiales en cabecera del mapa */
+.btn-toggle-secondary {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #7dd3fc;
+  border-radius: 0 !important;
+}
+
+.btn-toggle-secondary:hover,
+.btn-toggle-secondary.active {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.badge-count-pill {
+  background: #38bdf8;
+  color: #04101e;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 0 !important;
+}
+
+.active-tag-chip {
+  color: #ffffff;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 0 !important;
+}
+
+.btn-principal-map {
+  border-radius: 0 !important;
+}
+
+.btn-principal-map.active {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #f59e0b;
+  color: #fde68a;
+}
+
+/* Pestañas flotantes de Origen y Destino en la ESQUINA INFERIOR DERECHA del mapa */
+.map-floating-status.corner-bottom-right {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  top: auto;
+  left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   z-index: 800;
 }
 
 .floating-point-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(13, 21, 39, 0.92);
+  gap: 12px;
+  background: rgba(10, 15, 29, 0.95);
   border: 1px solid #1e293b;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  border-radius: 0 !important; /* Estrictamente rectangular */
   font-size: 12px;
   color: #f8fafc;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+}
+
+.floating-point-chip.chip-origen {
+  border-left: 4px solid #10b981;
+}
+
+.floating-point-chip.chip-destino {
+  border-left: 4px solid #ef4444;
+}
+
+.chip-left-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .chip-role {
   color: #94a3b8;
-  font-size: 11px;
+  font-size: 10.5px;
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.chip-right-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chip-right-details strong {
+  font-size: 12.5px;
+  color: #ffffff;
 }
 
 .chip-coords {
   color: #64748b;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 0 !important; /* Rectangular */
   flex-shrink: 0;
 }
 
@@ -591,11 +873,11 @@
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(15, 23, 42, 0.96);
   border: 1px solid #38bdf8;
   box-shadow: 0 4px 20px rgba(56, 189, 248, 0.35);
   padding: 8px 16px;
-  border-radius: 30px;
+  border-radius: 0 !important; /* Rectangular */
   display: flex;
   align-items: center;
   gap: 12px;
@@ -609,7 +891,7 @@
   width: 9px;
   height: 9px;
   background: #38bdf8;
-  border-radius: 50%;
+  border-radius: 0 !important; /* Rectangular */
   box-shadow: 0 0 8px #38bdf8;
   animation: pulseDot 1.2s infinite alternate;
 }
@@ -621,40 +903,53 @@
   padding: 3px 10px;
   font-size: 11px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 0 !important; /* Rectangular */
   cursor: pointer;
 }
 
-.cursor-telemetry-badge {
+/* Telemetría del cursor en ESQUINA INFERIOR IZQUIERDA */
+.cursor-telemetry-badge.corner-bottom-left {
   position: absolute;
-  bottom: 12px;
-  left: 14px;
-  background: rgba(10, 15, 28, 0.88);
+  bottom: 16px;
+  left: 16px;
+  background: rgba(10, 15, 28, 0.92);
   border: 1px solid #1e293b;
-  padding: 5px 10px;
-  border-radius: var(--radius-xs);
+  padding: 6px 12px;
+  border-radius: 0 !important; /* Rectangular */
   font-size: 11px;
   color: #cbd5e1;
   font-family: var(--font-mono);
   z-index: 800;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-.map-recenter-btn {
+/* Botón flotante para reenfocar vista en ESQUINA SUPERIOR DERECHA */
+.map-recenter-btn.corner-top-right {
   position: absolute;
-  bottom: 12px;
-  right: 14px;
+  top: 16px;
+  right: 16px;
+  bottom: auto;
+  left: auto;
   background: #0f172a;
   border: 1px solid #334155;
   color: var(--color-text-primary);
   padding: 6px 12px;
   font-size: 11.5px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  border-radius: 0 !important; /* Rectangular */
   cursor: pointer;
   z-index: 800;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  transition: all 140ms ease;
+}
+
+.map-recenter-btn.corner-top-right:hover {
+  background: #1e293b;
+  border-color: #60a5fa;
+  color: #ffffff;
 }
 
 .mars-map-footer {
@@ -1139,17 +1434,232 @@
 .route-card-item {
   background: #0d1527;
   border: 1px solid #1e293b;
-  border-radius: var(--radius-lg);
+  border-radius: 0 !important; /* Estrictamente rectangular */
   overflow: hidden;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   transition: all 180ms ease;
+  position: relative;
 }
 
 .route-card-item.is-selected {
   border-color: #10b981;
   box-shadow: 0 0 24px rgba(16, 185, 129, 0.25);
+}
+
+.route-card-item.card-is-best {
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+.route-card-item.card-is-worst {
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+.card-eval-banner {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eval-best-banner {
+  background: #10b981;
+  color: #042f2e;
+}
+
+.eval-worst-banner {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.score-best strong {
+  color: #10b981 !important;
+}
+
+.score-worst strong {
+  color: #ef4444 !important;
+}
+
+.route-danger-callout {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 0 !important;
+}
+
+/* Modal superpuesto de Rutas (Overlay) */
+.overlay-routes-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 180ms ease;
+}
+
+.overlay-routes-modal {
+  width: 100%;
+  max-width: 1480px;
+  max-height: 92vh;
+  background: #090e1c;
+  border: 1px solid #334155;
+  border-radius: 0 !important; /* Rectangular */
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.overlay-routes-header {
+  padding: 16px 24px;
+  background: #0d1527;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.overlay-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge-overlay-tag {
+  background: rgba(37, 99, 235, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 0 !important;
+}
+
+.badge-best-indicator {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 0 !important;
+}
+
+.badge-worst-indicator {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 0 !important;
+}
+
+.overlay-main-title {
+  margin: 6px 0 3px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.overlay-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.btn-close-overlay {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0 !important;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+
+.btn-close-overlay:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.overlay-routes-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Botón flotante para ver lista de rutas superpuesta sin hacer scroll */
+.btn-floating-view-routes {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #60a5fa;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+  cursor: pointer;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 0 !important; /* Rectangular */
+  transition: all 160ms ease;
+}
+
+.btn-floating-view-routes:hover {
+  background: #1d4ed8;
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.6);
+  transform: translateY(-2px);
+}
+
+.comparison-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-open-overlay-action {
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  color: #93c5fd;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0 !important;
+  transition: all 140ms ease;
+}
+
+.btn-open-overlay-action:hover {
+  background: #2563eb;
+  color: #ffffff;
 }
 
 /* Pequeño mapa de la ruta */
@@ -1262,7 +1772,7 @@
   justify-content: space-between;
   background: #090e1a;
   border: 1px solid #1e293b;
-  border-radius: var(--radius-sm);
+  border-radius: 0 !important;
   padding: 8px 14px;
 }
 
@@ -1294,7 +1804,7 @@
   gap: 6px;
   background: #111a33;
   border: 1px solid #1e293b;
-  border-radius: var(--radius-sm);
+  border-radius: 0 !important;
   padding: 10px 12px;
 }
 
@@ -1341,7 +1851,7 @@
 .pros-block,
 .cons-block {
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: 0 !important;
 }
 
 .pros-block {
@@ -1422,7 +1932,7 @@
   color: #f8fafc;
   font-size: 12.5px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  border-radius: 0 !important;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1486,6 +1996,38 @@
   letter-spacing: 0.05em;
   white-space: nowrap;
   border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Etiquetas permanentes de los 25 puntos marcianos en el mapa Leaflet */
+.leaflet-tooltip.mars-point-permanent-label {
+  background: rgba(11, 18, 36, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #f8fafc !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  padding: 2px 7px !important;
+  border-radius: 0 !important; /* Bordes rectangulares estrictos */
+  white-space: nowrap !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.75) !important;
+  pointer-events: none !important;
+  z-index: 600 !important;
+}
+
+.leaflet-tooltip.mars-point-permanent-label::before {
+  display: none !important;
+}
+
+.leaflet-tooltip.mars-point-permanent-label.mars-point-origin-label {
+  background: rgba(6, 78, 59, 0.95) !important;
+  border: 1px solid #10b981 !important;
+  color: #a7f3d0 !important;
+}
+
+.leaflet-tooltip.mars-point-permanent-label.mars-point-destination-label {
+  background: rgba(127, 29, 29, 0.95) !important;
+  border: 1px solid #ef4444 !important;
+  color: #fecaca !important;
 }
 
 /* --------------------------------------------------------------------------

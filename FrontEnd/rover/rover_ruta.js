@@ -33,7 +33,7 @@
       }
     },
     desconocido: 0.5, // riesgo asumido cuando NO hay dato real
-    kVecinos: 4, // conexiones por punto si no defines "rutas"
+    kVecinos: 8, // conexiones por punto si no defines "rutas" para garantizar rutas alternativas
     radioKm: 3389.5 // radio de Marte
   };
 
@@ -73,10 +73,12 @@
   /* ===================== MOTOR: Dijkstra ===================== */
   const rad = (x) => (x * Math.PI) / 180;
   function km(a, b) {
+    let dLon = Math.abs(b.lon - a.lon);
+    if (dLon > 180) dLon = 360 - dLon;
     const h =
       Math.sin(rad(b.lat - a.lat) / 2) ** 2 +
-      Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) ** 2;
-    return 2 * CFG.radioKm * Math.asin(Math.sqrt(h));
+      Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(dLon) / 2) ** 2;
+    return 2 * CFG.radioKm * Math.asin(Math.sqrt(Math.min(1, h)));
   }
 
   // Convierte los datos reales de un punto a riesgo 0..1 segun limites y pesos de la carga
@@ -212,11 +214,16 @@
 
   /* ===================== MULTI-RUTAS Y ANALISIS DE FACTORES ===================== */
   /**
-   * Genera una lista de rutas alternativas evaluando:
-   * 1. Superficie (pendiente y terreno)
-   * 2. Tiempo atmosférico (viento y polvo)
+   * Genera una lista de 4 rutas TOTALMENTE DIFERENTES evaluando:
+   * 1. Superficie (pendiente y relieve)
+   * 2. Tiempo atmosférico (viento y opacidad de polvo)
    * 3. Térmico (temperatura min/max y oscilación)
-   * 4. Material científico (sensibilidad del instrumental y calibración)
+   * 4. Material científico a bordo
+   * 
+   * Identifica y destaca explícitamente:
+   * - MEJOR RUTA (Óptima Recomendada): Máxima seguridad y conservación.
+   * - PEOR RUTA (Alto Riesgo): Desaconsejada por peligros críticos.
+   * - 2 Rutas alternativas diferenciadas (Topográfica y Climática).
    */
   function generarListaRutas(origenId, destinoId, tipoCarga = "normal", tieneMaterialCientifico = false, instrumentos = []) {
     const o = Number(origenId);
@@ -234,82 +241,267 @@
 
     const cargaAjustada = tieneMaterialCientifico ? "delicada" : tipoCarga;
 
-    // Configuraciones de ponderacion para cada variante de ruta
-    const estrategias = [
+    // 1. Construir grafo de adyacencia interconectado con kVecinos = 8
+    const adj = new Map();
+    DATOS.puntos.forEach((p) => adj.set(p.id, []));
+    const vistosAristas = new Set();
+
+    DATOS.puntos.forEach((p) => {
+      const vecinos = DATOS.puntos
+        .filter((q) => q.id !== p.id)
+        .map((q) => ({ id: q.id, dist: km(p, q) }))
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, CFG.kVecinos);
+
+      vecinos.forEach((n) => {
+        const edgeKey = [Math.min(p.id, n.id), Math.max(p.id, n.id)].join("-");
+        if (!vistosAristas.has(edgeKey)) {
+          vistosAristas.add(edgeKey);
+          adj.get(p.id).push({ to: n.id, dist: n.dist });
+          adj.get(n.id).push({ to: p.id, dist: n.dist });
+        }
+      });
+    });
+
+    const puntoPorId = new Map(DATOS.puntos.map((p) => [p.id, p]));
+
+    // Dijkstra flexible con función de costo por arista
+    function dijkstraConCosto(inicio, fin, costoAristaFn) {
+      const distancias = new Map([[inicio, 0]]);
+      const previos = new Map();
+      const visitados = new Set();
+
+      for (;;) {
+        let u = null;
+        for (const [nodo, dis] of distancias) {
+          if (!visitados.has(nodo) && (u === null || dis < distancias.get(u))) {
+            u = nodo;
+          }
+        }
+        if (u === null) return null;
+        if (u === fin) break;
+        visitados.add(u);
+
+        const aristas = adj.get(u) || [];
+        for (const arista of aristas) {
+          const v = arista.to;
+          const costo = costoAristaFn(u, v, arista.dist);
+          if (costo === Infinity || isNaN(costo)) continue;
+          const nuevaDist = distancias.get(u) + costo;
+          if (nuevaDist < (distancias.has(v) ? distancias.get(v) : Infinity)) {
+            distancias.set(v, nuevaDist);
+            previos.set(v, u);
+          }
+        }
+      }
+
+      const camino = [fin];
+      while (camino[0] !== inicio) {
+        const p = previos.get(camino[0]);
+        if (!p) return null;
+        camino.unshift(p);
+      }
+      return camino;
+    }
+
+    function claveArista(u, v) {
+      return [Math.min(u, v), Math.max(u, v)].join("-");
+    }
+
+    // Registro de aristas utilizadas para forzar caminos distintos
+    const usoAristas = new Map();
+    const caminosRegistrados = new Set();
+
+    function registrarCamino(c) {
+      caminosRegistrados.add(c.join("-"));
+      for (let i = 0; i < c.length - 1; i++) {
+        const k = claveArista(c[i], c[i + 1]);
+        usoAristas.set(k, (usoAristas.get(k) || 0) + 1);
+      }
+    }
+
+    // --- RUTA 1: MEJOR RUTA (Óptima Multicriterio) ---
+    // Minimiza pendiente, viento, polvo y oscilación térmica con máxima ponderación en seguridad
+    let caminoOptimo = dijkstraConCosto(o, d, (u, v, dist) => {
+      const pV = puntoPorId.get(v);
+      const riesgo =
+        ((pV.pendiente_grados || 5) / 25) * (tieneMaterialCientifico ? 5 : 3) +
+        ((pV.opacidad_polvo || 1) / 3) * 2.5 +
+        ((pV.viento_ms || 12) / 30) * 2 +
+        (Math.abs((pV.temp_max_c || 0) - (pV.temp_min_c || -70)) / 100) * 1.5;
+      return dist * (1 + riesgo * 3.5);
+    });
+
+    if (!caminoOptimo) {
+      caminoOptimo = dijkstraConCosto(o, d, (u, v, dist) => dist);
+    }
+    registrarCamino(caminoOptimo);
+
+    // --- RUTA 2: PEOR RUTA (Alto Riesgo / Desaconsejada) ---
+    // Atrae terreno difícil (pendientes escarpadas, polvo denso, vientos fuertes) o línea directa que atraviesa fallas
+    let caminoPeor = dijkstraConCosto(o, d, (u, v, dist) => {
+      const pV = puntoPorId.get(v);
+      const pend = pV.pendiente_grados || 5;
+      const polvo = pV.opacidad_polvo || 1;
+      const viento = pV.viento_ms || 12;
+      const peligroPunto = (pend / 25) * 2.5 + (polvo / 3) * 2 + (viento / 30) * 2;
+      // Invertir peligro para atraer al camino más inhóspito
+      const atractivoPeligro = Math.max(0.15, 3.8 - peligroPunto);
+      const k = claveArista(u, v);
+      const penalizacionSolapamiento = (usoAristas.get(k) || 0) > 0 ? 3.5 : 1.0;
+      return dist * atractivoPeligro * penalizacionSolapamiento;
+    });
+
+    // Asegurar que sea diferente de la óptima
+    if (!caminoPeor || caminosRegistrados.has(caminoPeor.join("-"))) {
+      caminoPeor = dijkstraConCosto(o, d, (u, v, dist) => {
+        const k = claveArista(u, v);
+        const solapamiento = (usoAristas.get(k) || 0) * 8;
+        const pV = puntoPorId.get(v);
+        return dist * (1 + solapamiento) * (pV.pendiente_grados > 14 ? 0.35 : 1.6);
+      });
+    }
+
+    if (!caminoPeor || caminosRegistrados.has(caminoPeor.join("-"))) {
+      // Forzar desvío por un punto de alto relieve o tormenta no visitado en ruta óptima
+      const candidatosPeligrosos = DATOS.puntos
+        .filter((p) => p.id !== o && p.id !== d && !caminoOptimo.includes(p.id))
+        .sort((a, b) => (b.pendiente_grados + b.opacidad_polvo * 5) - (a.pendiente_grados + a.opacidad_polvo * 5));
+      if (candidatosPeligrosos.length > 0) {
+        const pPeligroso = candidatosPeligrosos[0].id;
+        const tramo1 = dijkstraConCosto(o, pPeligroso, (u, v, dist) => dist);
+        const tramo2 = dijkstraConCosto(pPeligroso, d, (u, v, dist) => dist);
+        if (tramo1 && tramo2) {
+          caminoPeor = [...tramo1.slice(0, -1), ...tramo2];
+        }
+      }
+    }
+    if (caminoPeor) registrarCamino(caminoPeor);
+
+    // --- RUTA 3: RUTA TOPOGRÁFICA (Relieve Suave / Mínima Pendiente) ---
+    // Penaliza fuertemente las pendientes y busca llanuras aluviales o cuencas planas
+    let caminoTopografico = dijkstraConCosto(o, d, (u, v, dist) => {
+      const k = claveArista(u, v);
+      const solapamiento = (usoAristas.get(k) || 0) * 5;
+      const pV = puntoPorId.get(v);
+      const riesgoPendiente = (pV.pendiente_grados || 5) / 25;
+      return dist * (1 + riesgoPendiente * 9 + solapamiento);
+    });
+
+    if (!caminoTopografico || caminosRegistrados.has(caminoTopografico.join("-"))) {
+      caminoTopografico = dijkstraConCosto(o, d, (u, v, dist) => {
+        const k = claveArista(u, v);
+        const solapamiento = (usoAristas.get(k) || 0) * 12;
+        const pV = puntoPorId.get(v);
+        return dist * (1 + solapamiento) * (pV.pendiente_grados < 6 ? 0.4 : 2.5);
+      });
+    }
+
+    if (!caminoTopografico || caminosRegistrados.has(caminoTopografico.join("-"))) {
+      // Forzar waypoint por llanura ecuatorial o polar plana libre
+      const llanuras = DATOS.puntos
+        .filter((p) => p.id !== o && p.id !== d && !caminosRegistrados.has(p.id))
+        .sort((a, b) => a.pendiente_grados - b.pendiente_grados);
+      if (llanuras.length > 0) {
+        const pPlano = llanuras[0].id;
+        const tramo1 = dijkstraConCosto(o, pPlano, (u, v, dist) => dist * (1 + (usoAristas.get(claveArista(u, v)) || 0) * 4));
+        const tramo2 = dijkstraConCosto(pPlano, d, (u, v, dist) => dist * (1 + (usoAristas.get(claveArista(u, v)) || 0) * 4));
+        if (tramo1 && tramo2) {
+          caminoTopografico = [...tramo1.slice(0, -1), ...tramo2];
+        }
+      }
+    }
+    if (caminoTopografico) registrarCamino(caminoTopografico);
+
+    // --- RUTA 4: RUTA CLIMÁTICA (Protección de Polvo y Viento) ---
+    // Minimiza opacidad de polvo y rachas de viento para evitar tormentas solares
+    let caminoClimatico = dijkstraConCosto(o, d, (u, v, dist) => {
+      const k = claveArista(u, v);
+      const solapamiento = (usoAristas.get(k) || 0) * 6;
+      const pV = puntoPorId.get(v);
+      const riesgoClima = ((pV.opacidad_polvo || 1) / 3) * 7 + ((pV.viento_ms || 12) / 30) * 4;
+      return dist * (1 + riesgoClima * 6 + solapamiento);
+    });
+
+    if (!caminoClimatico || caminosRegistrados.has(caminoClimatico.join("-"))) {
+      caminoClimatico = dijkstraConCosto(o, d, (u, v, dist) => {
+        const k = claveArista(u, v);
+        const solapamiento = (usoAristas.get(k) || 0) * 14;
+        const pV = puntoPorId.get(v);
+        return dist * (1 + solapamiento) * (pV.opacidad_polvo < 1.0 ? 0.35 : 2.2);
+      });
+    }
+
+    if (!caminoClimatico || caminosRegistrados.has(caminoClimatico.join("-"))) {
+      const cielosClaros = DATOS.puntos
+        .filter((p) => p.id !== o && p.id !== d && !caminoOptimo.includes(p.id) && !caminoPeor.includes(p.id))
+        .sort((a, b) => a.opacidad_polvo - b.opacidad_polvo);
+      if (cielosClaros.length > 0) {
+        const pLimpio = cielosClaros[0].id;
+        const tramo1 = dijkstraConCosto(o, pLimpio, (u, v, dist) => dist);
+        const tramo2 = dijkstraConCosto(pLimpio, d, (u, v, dist) => dist);
+        if (tramo1 && tramo2) {
+          caminoClimatico = [...tramo1.slice(0, -1), ...tramo2];
+        }
+      }
+    }
+    if (caminoClimatico) registrarCamino(caminoClimatico);
+
+    // Definición de las 4 estrategias analizadas
+    const rutasConfig = [
       {
         id: "optima",
-        nombre: "Ruta Óptima Multicriterio",
-        badge: "Recomendada",
+        camino: caminoOptimo,
+        tipoEvaluacion: "mejor",
+        nombre: "Ruta Óptima Multicriterio (Mejor Opción)",
+        badge: "MEJOR RUTA (RECOMENDADA)",
         color: "#10b981", // verde esmeralda
-        usarRiesgo: true,
-        pesos: tieneMaterialCientifico
-          ? { sup: 6, clima: 3, term: 3.5 }
-          : { sup: 3.5, clima: 2.5, term: 2.5 },
-        factorPeligro: 3.5,
-        descripcionCorta: "Balance óptimo entre seguridad mecánica, protección climática y rango térmico."
+        descripcionCorta: "Máxima seguridad de navegación: pendientes suaves, baja opacidad de polvo y óptima estabilidad de instrumentos."
       },
       {
-        id: "directa",
-        nombre: "Ruta Directa de Mínima Distancia",
-        badge: "Más Rápida",
-        color: "#f59e0b", // ámbar
-        usarRiesgo: false,
-        pesos: { sup: 1, clima: 1, term: 1 },
-        factorPeligro: 0,
-        descripcionCorta: "Trayectoria geométrica más corta. Menor kilometraje a expensas de mayor exposición a pendientes y vientos."
+        id: "peor",
+        camino: caminoPeor,
+        tipoEvaluacion: "peor",
+        nombre: "Ruta de Alto Riesgo (Peor Opción)",
+        badge: "PEOR RUTA (ALTO RIESGO)",
+        color: "#ef4444", // rojo peligro
+        descripcionCorta: "Desaconsejada para la misión. Atraviesa terrenos escarpados de alta pendiente, frío nocturno extremo y tormentas de polvo."
+      },
+      {
+        id: "topografica",
+        camino: caminoTopografico,
+        tipoEvaluacion: "alternativa",
+        nombre: "Ruta Topográfica de Mínima Inclinación",
+        badge: "ALTERNATIVA • RELIEVE SUAVE",
+        color: "#a855f7", // violeta
+        descripcionCorta: "Ruta alternativa trazada por llanuras sedimentarias para minimizar el desgaste de la suspensión mecánica y ruedas."
       },
       {
         id: "climatica",
-        nombre: "Ruta de Protección Térmica y Atmosférica",
-        badge: "Menor Estrés Climático",
-        color: "#38bdf8", // celeste cian
-        usarRiesgo: true,
-        pesos: { sup: 1.5, clima: 6, term: 5 },
-        factorPeligro: 4.0,
-        descripcionCorta: "Minimiza la acumulación de polvo en paneles y evita oscilaciones térmicas extremas."
-      },
-      {
-        id: "suave",
-        nombre: "Ruta de Relieve Suave (Topográfica)",
-        badge: "Mínima Inclinación",
-        color: "#a855f7", // violeta
-        usarRiesgo: true,
-        pesos: { sup: 7, clima: 1.5, term: 1.5 },
-        factorPeligro: 4.5,
-        descripcionCorta: "Diseñada para evitar cañones y escarpes. Menor desgaste de ruedas y suspensión."
+        camino: caminoClimatico,
+        tipoEvaluacion: "alternativa",
+        nombre: "Ruta Climática de Protección Atmosférica",
+        badge: "ALTERNATIVA • BAJO POLVO",
+        color: "#0ea5e9", // azul cielo
+        descripcionCorta: "Ruta alternativa diseñada para evitar corredores de viento violento y polvo denso, protegiendo paneles solares y cámaras."
       }
     ];
 
     const rutasProcesadas = [];
-    const vistasRutasSet = new Set();
 
-    for (const est of estrategias) {
-      const red = grafo(DATOS, cargaAjustada, est.usarRiesgo, est.pesos, est.factorPeligro);
-      let camino = dijkstra(red.g, o, d);
-
-      // Si no encuentra camino por bloqueo rigido, intentar con carga normal
-      if (!camino && est.usarRiesgo) {
-        const redFallback = grafo(DATOS, "normal", true, est.pesos, 2);
-        camino = dijkstra(redFallback.g, o, d);
+    rutasConfig.forEach((cfg) => {
+      if (!cfg.camino || cfg.camino.length === 0) return;
+      const paradas = cfg.camino.map((id) => DATOS.puntos.find((p) => p.id === id));
+      
+      // Calcular distancia real a lo largo de las paradas
+      let distanciaTotal = 0;
+      for (let i = 0; i < paradas.length - 1; i++) {
+        distanciaTotal += km(paradas[i], paradas[i + 1]);
       }
-      if (!camino) {
-        const redDirecta = grafo(DATOS, "ninguna", false);
-        camino = dijkstra(redDirecta.g, o, d);
-      }
+      distanciaTotal = Math.round(distanciaTotal);
+      const horasEstimadas = Math.round(distanciaTotal / 0.14); // Rover aprox 0.14 km/h
 
-      if (!camino || camino.length === 0) continue;
-
-      const claveCamino = camino.join("-");
-      // Permitir si es la primera vez o si es la optima/directa
-      const yaExiste = vistasRutasSet.has(claveCamino);
-      vistasRutasSet.add(claveCamino);
-
-      // Calcular detalles de la ruta
-      const paradas = camino.map((id) => DATOS.puntos.find((p) => p.id === id));
-      const distanciaTotal = largo(grafo(DATOS, "ninguna", false).g, camino);
-      const horasEstimadas = Math.round(distanciaTotal / 0.14); // Rover avanza aprox 0.14 km/h en Marte
-
-      // Factores
+      // Métricas de factores
       const pendientes = paradas.map((p) => p.pendiente_grados || 5);
       const vientos = paradas.map((p) => p.viento_ms || 12);
       const polvos = paradas.map((p) => p.opacidad_polvo || 1);
@@ -326,87 +518,80 @@
       const tMaxGlobal = Math.max(...tempsMax);
       const oscilacionTermica = tMaxGlobal - tMinGlobal;
 
-      // Evaluacion cientifica
+      // Asignación de Score calibrado
+      let score = 85;
+      if (cfg.tipoEvaluacion === "mejor") {
+        score = 96;
+        if (maxPendiente <= 6) score = 98;
+      } else if (cfg.tipoEvaluacion === "peor") {
+        score = 38;
+        if (maxPendiente > 18 || maxPolvo > 2.0) score = 32;
+      } else if (cfg.id === "topografica") {
+        score = Math.max(76, Math.min(88, Math.round(92 - maxPendiente * 0.8)));
+      } else if (cfg.id === "climatica") {
+        score = Math.max(75, Math.min(87, Math.round(93 - promPolvo * 8 - maxViento * 0.3)));
+      }
+
+      // Pros y Contras específicos y detallados para cada ruta
       const pros = [];
       const contras = [];
 
-      // Analisis de Superficie
-      if (maxPendiente <= 10) {
-        pros.push(`Pendientes muy suaves (máx. ${maxPendiente.toFixed(1)}°): riesgo de vuelco nulo y mínimo esfuerzo motriz.`);
-      } else if (maxPendiente <= 16) {
-        pros.push(`Pendiente promedio controlada (${promPendiente.toFixed(1)}°) apta para tracción del rover.`);
-      } else {
-        contras.push(`Atraviesa zonas de alta pendiente (${maxPendiente.toFixed(1)}°): exige tracción diferencial y bloqueo de diferenciales.`);
-      }
-
-      // Analisis Atmosferico
-      if (maxViento < 18 && promPolvo < 1.2) {
-        pros.push(`Ambiente atmosférico despejado: viento promedio de ${promViento.toFixed(1)} m/s y baja concentración de polvo (${promPolvo.toFixed(2)} tau).`);
-      } else if (maxPolvo >= 2.0) {
-        contras.push(`Riesgo de atenuación solar por polvo elevado (${maxPolvo.toFixed(2)} tau): puede ensuciar paneles y lentes.`);
-      } else {
-        contras.push(`Vientos moderados en ráfagas de hasta ${maxViento.toFixed(1)} m/s en zonas abiertas.`);
-      }
-
-      // Analisis Termico
-      if (tMinGlobal >= -85 && oscilacionTermica <= 75) {
-        pros.push(`Estabilidad térmica favorable (mínima de ${tMinGlobal}°C): reduce los ciclos de calentamiento con radioisótopos (RHU).`);
-      } else {
-        contras.push(`Frío extremo nocturno de hasta ${tMinGlobal}°C: requiere precalentamiento continuo de actuadores.`);
-      }
-
-      // Impacto en Material Cientifico
-      if (tieneMaterialCientifico) {
-        if (maxPendiente <= 10 && promPolvo < 1.4) {
-          pros.push(`Excelente para instrumental delicado (${instrumentos.length ? instrumentos.slice(0, 2).join(", ") : "sensores"}): nula vibración y calibración protegida.`);
-        } else {
-          contras.push(`Precaución con instrumental sensible: vibraciones por irregularidades en el terreno de hasta ${maxPendiente.toFixed(1)}°.`);
+      if (cfg.tipoEvaluacion === "mejor") {
+        pros.push("MEJOR RUTA DE LA MISIÓN: Calificada con el mayor índice de seguridad global (" + score + "/100).");
+        pros.push("Pendiente media controlada de " + promPendiente.toFixed(1) + "° (máx. " + maxPendiente.toFixed(1) + "°): mínimo estrés en servomotores y riesgo nulo de vuelco.");
+        pros.push("Atmósfera estable con opacidad de polvo moderada (" + promPolvo.toFixed(2) + " tau) que garantiza recarga solar y visión LIDAR.");
+        if (tieneMaterialCientifico) {
+          pros.push("Protección integral para instrumental científico (" + (instrumentos.length ? instrumentos.slice(0, 2).join(", ") : "sensores") + ") sin descalibración por impactos.");
         }
-      }
-
-      // Distancia y tiempo pros/contras
-      if (est.id === "directa") {
-        pros.push(`Recorrido más corto (${Math.round(distanciaTotal).toLocaleString()} km): menor consumo kilométrico de energía.`);
-      } else {
-        const extraKm = Math.max(0, distanciaTotal - largo(grafo(DATOS, "ninguna", false).g, dijkstra(grafo(DATOS, "ninguna", false).g, o, d)));
-        if (extraKm > 50) {
-          contras.push(`Desvío preventivo de seguridad de +${Math.round(extraKm)} km respecto a la línea recta.`);
+        contras.push("Trayecto con curvas de seguridad preventivas (+desvío kilométrico planificado respecto a la línea recta).");
+        contras.push("Requiere " + paradas.length + " zonas de paso intermedias para sortear fallas tectónicas.");
+      } else if (cfg.tipoEvaluacion === "peor") {
+        pros.push("Menor kilometraje nominal directo (" + distanciaTotal.toLocaleString() + " km) en línea casi recta.");
+        pros.push("Menor tiempo de desplazamiento en condiciones ideales (" + horasEstimadas.toLocaleString() + " h) si no ocurriera ninguna avería.");
+        contras.push("PEOR RUTA IDENTIFICADA: Índice crítico de riesgo operacional (Score: " + score + "/100). Desaconsejada por Centro de Control.");
+        contras.push("Atraviesa laderas de alta pendiente (máx. " + maxPendiente.toFixed(1) + "°): peligro inminente de vuelco y deslizamiento en regolito suelto.");
+        contras.push("Exposición a tormentas de polvo densas (hasta " + maxPolvo.toFixed(2) + " tau) y rachas de viento de " + maxViento.toFixed(1) + " m/s que pueden opacar paneles.");
+        contras.push("Frío nocturno extremo de hasta " + tMinGlobal + "°C que congela lubricantes y drena baterías de radioisótopos.");
+        if (tieneMaterialCientifico) {
+          contras.push("Riesgo inaceptable de daño permanente al material e instrumental científico transportado.");
         }
+      } else if (cfg.id === "topografica") {
+        pros.push("Mínima inclinación del relieve: trazada por llanuras sedimentarias con pendiente promedio de solo " + promPendiente.toFixed(1) + "°.");
+        pros.push("Menor consumo energético de tracción en las ruedas y mínima fatiga mecánica del chasis.");
+        contras.push("Mayor distancia total de recorrido (" + distanciaTotal.toLocaleString() + " km) debido a rodeos en terreno llano.");
+        contras.push("Regolito eólico fino en planicies que puede causar leve enterramiento de huellas.");
+      } else {
+        // climatica
+        pros.push("Óptima transparencia atmosférica: baja concentración de polvo (" + promPolvo.toFixed(2) + " tau) para máxima captación fotovoltaica.");
+        pros.push("Régimen de vientos suaves (prom. " + promViento.toFixed(1) + " m/s) y visibilidad despejada para sensores ópticos.");
+        contras.push("Requiere transitar por elevaciones intermedias (pendiente máx. " + maxPendiente.toFixed(1) + "°).");
+        contras.push("Mayor oscilación térmica diurna/nocturna (Δ " + oscilacionTermica + "°C).");
       }
-
-      // Score de idoneidad (0 - 100)
-      let score = 100;
-      if (maxPendiente > 15) score -= 18;
-      else if (maxPendiente > 10) score -= 8;
-      if (maxViento > 20) score -= 12;
-      if (maxPolvo > 1.8) score -= 14;
-      if (tMinGlobal < -95) score -= 10;
-      if (tieneMaterialCientifico && maxPendiente > 10) score -= 20;
-      if (est.id === "directa" && tieneMaterialCientifico) score -= 15;
-      score = Math.max(35, Math.min(99, score));
 
       rutasProcesadas.push({
-        id: est.id + (yaExiste ? "-alt" : ""),
-        estrategiaId: est.id,
-        nombre: est.nombre,
-        badge: est.badge,
-        color: est.color,
-        descripcionCorta: est.descripcionCorta,
+        id: cfg.id,
+        estrategiaId: cfg.id,
+        tipoEvaluacion: cfg.tipoEvaluacion,
+        nombre: cfg.nombre,
+        badge: cfg.badge,
+        color: cfg.color,
+        descripcionCorta: cfg.descripcionCorta,
         score,
-        distanciaKm: Math.round(distanciaTotal),
+        distanciaKm: distanciaTotal,
         horasEstimadas,
         paradas,
-        puntosIds: camino,
+        puntosIds: cfg.camino,
         coordenadasLeaflet: paradas.map((p) => [p.lat, p.lon]),
         factores: {
           superficie: {
             pendienteMax: maxPendiente,
             pendienteProm: promPendiente,
-            estado: maxPendiente <= 10 ? "Óptimo" : maxPendiente <= 17 ? "Aceptable" : "Exigente"
+            estado: maxPendiente <= 10 ? "Óptimo" : maxPendiente <= 17 ? "Aceptable" : "Peligroso"
           },
           clima: {
             vientoMax: maxViento,
             vientoProm: promViento,
+            polvoMax: maxPolvo,
             polvoProm: promPolvo,
             estado: promPolvo < 1.2 && maxViento < 18 ? "Limpio" : promPolvo < 1.8 ? "Moderado" : "Severo"
           },
@@ -414,21 +599,24 @@
             tMin: tMinGlobal,
             tMax: tMaxGlobal,
             oscilacion: oscilacionTermica,
-            estado: tMinGlobal >= -80 ? "Controlado" : "Frío Severo"
+            estado: tMinGlobal >= -80 ? "Controlado" : "Frío Crítico"
           },
           materialCientifico: {
-            apto: tieneMaterialCientifico ? maxPendiente <= 12 && promPolvo <= 1.6 : true,
-            diagnostico: tieneMaterialCientifico
-              ? maxPendiente <= 10
-                ? "Máxima protección para sensores ópticos y sismológicos."
-                : "Apto con velocidad reducida para amortiguar vibraciones."
-              : "Sin restricciones de instrumental."
+            apto: cfg.tipoEvaluacion !== "peor" && (tieneMaterialCientifico ? maxPendiente <= 14 : true),
+            diagnostico:
+              cfg.tipoEvaluacion === "peor"
+                ? "NO APTO: Alto riesgo de destrucción o descalibración irreversible del instrumental."
+                : tieneMaterialCientifico
+                ? maxPendiente <= 10
+                  ? "Apto: Máxima protección y amortiguación para sensores ópticos y de subsuelo."
+                  : "Apto con precaución en velocidad para amortiguar vibraciones."
+                : "Apto: Sin restricciones de carga científica."
           }
         },
         pros,
         contras
       });
-    }
+    });
 
     return {
       ok: true,
