@@ -260,10 +260,10 @@ export default function MarsMap({
       });
 
       marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 13px; color: #1e293b;">
-          <strong style="color: #15803d;">📍 Dónde estás (Origen):</strong><br/>
-          <b>${origen.nombre}</b><br/>
-          <small>${formatearCoordenadas(origen.lat, origen.lon)}</small>
+        <div style="font-family: inherit; font-size: 12.5px; color: #0f172a; line-height: 1.45;">
+          <div style="font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; margin-bottom: 2px;">Punto de Origen</div>
+          <div style="font-weight: 600; font-size: 13px; color: #0f172a;">${origen.nombre}</div>
+          <div style="font-family: ui-monospace, monospace; font-size: 11px; color: #475569; margin-top: 3px;">${formatearCoordenadas(origen.lat, origen.lon)}</div>
         </div>
       `);
 
@@ -289,10 +289,10 @@ export default function MarsMap({
       });
 
       marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 13px; color: #1e293b;">
-          <strong style="color: #b91c1c;">🎯 Dónde quieres ir (Destino):</strong><br/>
-          <b>${destino.nombre}</b><br/>
-          <small>${formatearCoordenadas(destino.lat, destino.lon)}</small>
+        <div style="font-family: inherit; font-size: 12.5px; color: #0f172a; line-height: 1.45;">
+          <div style="font-weight: 700; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; margin-bottom: 2px;">Punto de Destino</div>
+          <div style="font-weight: 600; font-size: 13px; color: #0f172a;">${destino.nombre}</div>
+          <div style="font-family: ui-monospace, monospace; font-size: 11px; color: #475569; margin-top: 3px;">${formatearCoordenadas(destino.lat, destino.lon)}</div>
         </div>
       `);
 
@@ -416,17 +416,18 @@ export default function MarsMap({
 
         {/* Indicador de modo de selección activo */}
         {modoSeleccion && (
-          <div className="selection-prompt-banner">
-            <span className="prompt-pulse" />
-            <span>
+          <div className="selection-prompt-banner" role="status" aria-live="polite">
+            <span className="prompt-pulse" aria-hidden="true" />
+            <span className="prompt-text">
               {modoSeleccion === 'origen'
-                ? '📍 Haz clic en el mapa para fijar dónde estás (Origen)'
-                : '🎯 Haz clic en el mapa para fijar a dónde quieres ir (Destino)'}
+                ? 'Fijar Origen: Haga clic en la superficie marciana para establecer el punto de partida'
+                : 'Fijar Destino: Haga clic en la superficie marciana para establecer el punto de llegada'}
             </span>
             <button
               type="button"
               className="prompt-cancel-btn"
               onClick={() => setModoSeleccion(null)}
+              aria-label="Cancelar fijación en mapa"
             >
               Cancelar
             </button>
@@ -434,14 +435,14 @@ export default function MarsMap({
         )}
 
         {/* Telemetría de coordenadas bajo el cursor en tiempo real */}
-        <div className="cursor-telemetry-badge">
+        <div className="cursor-telemetry-badge" aria-live="off">
           {coordenadasCursor ? (
             <span>
               Lat: {coordenadasCursor.lat.toFixed(2)}° | Lon:{' '}
               {coordenadasCursor.lon.toFixed(2)}°
             </span>
           ) : (
-            <span>Mueve el cursor sobre Marte</span>
+            <span>Coordenadas de cursor en espera</span>
           )}
         </div>
 
@@ -451,8 +452,24 @@ export default function MarsMap({
           className="map-recenter-btn"
           onClick={handleAjustarVista}
           title="Centrar y ajustar vista a la ruta"
+          aria-label="Centrar y ajustar vista a la ruta"
         >
-          ⛶ Ajustar Vista
+          <svg
+            className="recenter-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M15 3h6v6M9 21H3v-6M21 9v6a9 9 0 0 1-9 9 9 9 0 0 1-9-9V9" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span>Ajustar Vista</span>
         </button>
       </div>
 

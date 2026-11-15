@@ -1,350 +1,491 @@
-/* Estructura básica con fondo espacial */
+/* ==========================================================================
+   SISTEMA DE INTERFAZ DE CONTROL MARCIANO
+   Inspirado en principios de diseno de ingenieria (better-ui, better-layout,
+   better-colors, better-typography, better-accessibility).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CONTENEDOR RAIZ
+   -------------------------------------------------------------------------- */
 
 .app-container {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: flex-start;
-  align-items: center;
-  padding: 24px 16px;
-  background-image: url('/BackGround_IMagen.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #ffffff;
+  padding: 24px 20px 48px 20px;
+  position: relative;
 }
 
-/* Logo NASA centrado arriba en medio */
-.nasa-logo-container {
+/* --------------------------------------------------------------------------
+   2. PORTAL DE ACCESO / LOGIN (VISTA EXCLUSIVA ANTES DE AUTENTICAR)
+   -------------------------------------------------------------------------- */
+
+.login-portal-wrapper {
+  width: 100%;
+  min-height: 85vh;
   display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: center;
-  margin-bottom: 18px;
+  padding: 20px 12px;
+  animation: fadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.nasa-logo {
-  width: 120px;
-  height: auto;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-}
-
-/* Barra de pestañas simple */
-.nav-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(8px);
-  padding: 5px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.tab-button {
-  background: transparent;
-  border: none;
-  color: #cbd5e1;
-  padding: 7px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-button:hover:not(:disabled) {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.tab-button.active {
-  background: rgba(239, 68, 68, 0.85);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
-}
-
-.tab-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.tab-button-external {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-  padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-left: 6px;
-  transition: all 0.2s;
-}
-
-.tab-button-external:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* ========================================================= */
-/* TARJETA DE LOGIN                                          */
-/* ========================================================= */
-
-.login-card {
-  width: 340px;
-  max-width: 95vw;
-  background: rgba(230, 215, 198, 0.42);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 24px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+.login-card-professional {
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-surface-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-card);
+  padding: 36px 32px 28px 32px;
   display: flex;
   flex-direction: column;
-  margin-top: 20px;
+  gap: 24px;
+  position: relative;
 }
 
-.login-card-content {
-  padding: 28px 28px 20px 28px;
+/* Encabezado e Insignia NASA en Login */
+.login-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
 }
 
-.avatar-circle {
-  width: 82px;
-  height: 82px;
+.login-logo-ring {
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  background: #ffffff;
-  margin: 0 auto 24px auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, rgba(13, 19, 33, 0.4) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-.avatar-silhouette {
-  width: 44px;
-  height: 44px;
-  fill: #735738;
+.login-nasa-logo {
+  width: 76px;
+  height: auto;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
-.input-group {
+.login-system-heading {
   display: flex;
-  align-items: stretch;
-  height: 38px;
-  background: #ffffff;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.input-icon-box {
-  width: 38px;
-  background: #eaeaea;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #555555;
-  flex-shrink: 0;
-}
-
-.input-icon-box svg {
-  width: 17px;
-  height: 17px;
-  fill: #5a5a5a;
-}
-
-.input-field {
-  flex: 1;
-  border: none;
-  outline: none;
-  padding: 0 12px;
-  font-size: 14px;
-  color: #2b2b2b;
-  background: #ffffff;
-}
-
-.input-field::placeholder {
-  color: #888888;
-}
-
-.login-options-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  color: #ffffff;
-  margin-top: 6px;
-  margin-bottom: 12px;
-}
-
-.remember-label {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
 }
 
-.login-divider {
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-}
-
-.login-submit-btn {
-  width: 100%;
-  border: none;
-  background: rgba(245, 236, 224, 0.65);
-  padding: 14px 0;
-  font-size: 15px;
+.login-subtag {
+  font-size: 10.5px;
   font-weight: 700;
-  color: #61482e;
-  letter-spacing: 2px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.2s ease;
+  color: var(--color-accent-mars);
 }
 
-.login-submit-btn:hover {
-  background: rgba(255, 246, 235, 0.9);
+.login-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  line-height: 1.2;
 }
 
-.error-message {
-  background: rgba(220, 38, 38, 0.9);
-  color: #ffffff;
-  font-size: 12.5px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.login-description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
 }
 
-/* ========================================================= */
-/* CONTENEDOR PRINCIPAL DE MISIÓN Y NAVEGACIÓN               */
-/* ========================================================= */
-
-.main-mission-container {
-  width: 100%;
-  max-width: 1320px;
+/* Formulario de Login */
+.login-form-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 40px;
+  gap: 18px;
 }
 
-/* Barra superior de usuario */
-.mission-user-bar {
+.field-block {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(12px);
-  padding: 10px 18px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  flex-direction: column;
+  gap: 6px;
 }
 
-.user-info-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #e2e8f0;
-}
-
-.user-icon {
-  font-size: 18px;
-}
-
-.btn-logout {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
-  padding: 6px 14px;
-  font-size: 13px;
+.field-label {
+  font-size: 12px;
   font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
 }
 
-.btn-logout:hover {
-  background: rgba(239, 68, 68, 0.5);
-  color: #ffffff;
-}
-
-/* Banner de confirmación de ruta */
-.mission-success-banner {
+.field-input-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 95, 70, 0.45));
-  border: 1px solid rgba(52, 211, 153, 0.6);
-  backdrop-filter: blur(10px);
-  padding: 14px 18px;
-  border-radius: 12px;
-  animation: slideDown 0.3s ease-out;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.banner-icon {
-  width: 32px;
-  height: 32px;
-  background: #10b981;
-  color: #ffffff;
-  border-radius: 50%;
+.field-leading-icon {
+  position: absolute;
+  left: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  font-weight: bold;
-  flex-shrink: 0;
+  color: var(--color-text-dim);
+  pointer-events: none;
 }
 
-.banner-content {
+.field-text-input {
+  width: 100%;
+  height: 42px;
+  background: rgba(8, 12, 22, 0.7);
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-sm);
+  padding: 0 14px 0 38px;
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.field-text-input::placeholder {
+  color: var(--color-text-dim);
+}
+
+.field-text-input:focus {
+  border-color: var(--color-border-active);
+  background: rgba(11, 17, 30, 0.95);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
+/* Pie de Login */
+.login-footer-note {
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-subtle);
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-dim);
+}
+
+/* --------------------------------------------------------------------------
+   3. BOTONES PRIMARIOS Y ACCIONES GENERALES
+   -------------------------------------------------------------------------- */
+
+.btn-primary-action {
+  height: 44px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  width: 100%;
+}
+
+.btn-primary-action:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-primary-action:active {
+  transform: scale(0.985);
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary-action:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   4. BANNERS DE ALERTA Y CONFIRMACION
+   -------------------------------------------------------------------------- */
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.4;
+  animation: slideDown 200ms ease-out;
+}
+
+.alert-banner-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  color: var(--color-danger);
+}
+
+/* Banner de confirmacion de mision */
+.mission-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(6, 78, 59, 0.32) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  backdrop-filter: blur(12px);
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  animation: slideDown 220ms ease-out;
+}
+
+.banner-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-success);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.banner-details {
   flex: 1;
 }
 
-.banner-content h4 {
-  margin: 0 0 4px 0;
-  font-size: 15px;
-  color: #a7f3d0;
+.banner-heading {
+  margin: 0 0 3px 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #6ee7b7;
 }
 
-.banner-content p {
+.banner-text {
   margin: 0;
-  font-size: 13px;
-  color: #f0fdf4;
-  line-height: 1.4;
+  font-size: 12.5px;
+  color: #ecfdf5;
+  line-height: 1.45;
 }
 
-.banner-dismiss-btn {
+.banner-close-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ecfdf5;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: var(--radius-xs);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 140ms ease;
 }
 
-.banner-dismiss-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+.banner-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
-/* ========================================================= */
-/* CUADRÍCULA PRINCIPAL: MAPA + FORMULARIO                  */
-/* ========================================================= */
+.banner-close-btn:active {
+  transform: scale(0.96);
+}
+
+/* --------------------------------------------------------------------------
+   5. CONSOLA DE MISION (VISTA TRAS INICIAR SESION)
+   -------------------------------------------------------------------------- */
+
+.main-mission-container {
+  width: 100%;
+  max-width: 1380px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: fadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Barra Superior de Control de Mision */
+.mission-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-panel);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mission-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-nasa-badge {
+  width: 48px;
+  height: auto;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+
+.identity-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.identity-sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-mars);
+}
+
+.identity-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.mission-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Indicador de telemetria en vivo */
+.system-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6ee7b7;
+}
+
+.status-ping-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 8px var(--color-success);
+  animation: pingDot 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes pingDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+/* Chip de identificacion de astronauta */
+.astronaut-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border-subtle);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.chip-icon {
+  color: var(--color-accent-blue);
+}
+
+.chip-label strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+}
+
+/* Boton de nueva ventana */
+.btn-header-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-header-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-medium);
+}
+
+.btn-header-secondary:active {
+  transform: scale(0.97);
+}
+
+/* Boton de cerrar sesion */
+.btn-header-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  padding: 6px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-header-logout:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #ffffff;
+}
+
+.btn-header-logout:active {
+  transform: scale(0.97);
+}
+
+/* --------------------------------------------------------------------------
+   6. CUADRICULA PRINCIPAL DE LA MISION (MAPA + CONSOLA DE CONFIGURACION)
+   -------------------------------------------------------------------------- */
 
 .mission-grid-layout {
   display: grid;
@@ -353,31 +494,32 @@
   align-items: start;
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 1080px) {
   .mission-grid-layout {
     grid-template-columns: 1fr;
   }
 }
 
-/* ========================================================= */
-/* COMPONENTE DE MAPA MARCIANO (MarsMap.jsx)                 */
-/* ========================================================= */
+/* --------------------------------------------------------------------------
+   7. COMPONENTE DE CARTOGRAFIA MARCIANA (MarsMap.jsx)
+   -------------------------------------------------------------------------- */
 
 .mars-map-wrapper {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 18px;
+  background: var(--color-surface-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
 }
 
 .mars-map-header {
   padding: 12px 18px;
-  background: rgba(30, 41, 59, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.75);
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -392,25 +534,25 @@
 }
 
 .mars-badge {
-  background: rgba(239, 68, 68, 0.25);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10.5px;
+  background: rgba(234, 88, 12, 0.18);
+  color: #fb923c;
+  border: 1px solid rgba(234, 88, 12, 0.4);
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .mars-map-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--color-text-primary);
 }
 
-/* Botones selectores de capa */
+/* Selector de capas WMTS */
 .layers-button-group {
   display: flex;
   gap: 6px;
@@ -418,45 +560,47 @@
 }
 
 .layer-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #e2e8f0;
-  padding: 6px 11px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  padding: 5px 11px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .layer-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+  border-color: var(--color-border-medium);
 }
 
 .layer-btn.active {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: #facc15;
-  color: #fef08a;
-  box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(96, 165, 250, 0.7);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.35);
 }
 
 .layer-indicator-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
-/* Contenedor del lienzo Leaflet */
+/* Contenedor de Leaflet */
 .map-canvas-container {
   position: relative;
   width: 100%;
-  height: 520px;
-  background: #090d16;
+  height: 540px;
+  background: #050811;
 }
 
 @media (max-width: 640px) {
@@ -468,7 +612,7 @@
 .leaflet-mars-container {
   width: 100%;
   height: 100%;
-  background: #050811;
+  background: #04060d;
 }
 
 .leaflet-mars-container.selection-mode-active {
@@ -482,7 +626,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(5, 8, 17, 0.85);
+  background: rgba(4, 6, 13, 0.88);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -490,16 +634,16 @@
   gap: 12px;
   z-index: 1000;
   font-size: 13px;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
 }
 
 .mars-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: #ef4444;
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--color-accent-mars);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 900ms linear infinite;
 }
 
 @keyframes spin {
@@ -508,48 +652,40 @@
   }
 }
 
-/* Banner de modo de selección activo */
+/* Banner de modo de seleccion interactivo */
 .selection-prompt-banner {
   position: absolute;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid #38bdf8;
-  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.35);
-  backdrop-filter: blur(8px);
+  background: rgba(13, 20, 36, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.6);
+  box-shadow: 0 4px 24px rgba(56, 189, 248, 0.35);
+  backdrop-filter: blur(12px);
   padding: 8px 16px;
   border-radius: 30px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   color: #ffffff;
   z-index: 1000;
-  animation: pulseGlow 2s infinite;
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 4px 18px rgba(56, 189, 248, 0.3);
-  }
-  50% {
-    box-shadow: 0 4px 28px rgba(56, 189, 248, 0.6);
-  }
+  white-space: nowrap;
 }
 
 .prompt-pulse {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   background: #38bdf8;
   border-radius: 50%;
-  animation: pulseDot 1s infinite alternate;
+  box-shadow: 0 0 10px #38bdf8;
+  animation: pulseDot 1.2s infinite alternate;
 }
 
 @keyframes pulseDot {
   from {
-    transform: scale(0.8);
+    transform: scale(0.85);
     opacity: 0.7;
   }
   to {
@@ -558,117 +694,142 @@
   }
 }
 
+.prompt-text {
+  color: #f0f9ff;
+}
+
 .prompt-cancel-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-size: 11px;
-  border-radius: 4px;
+  font-weight: 600;
+  border-radius: 12px;
   cursor: pointer;
+  transition: all 140ms ease;
 }
 
 .prompt-cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.28);
 }
 
-/* Telemetría de cursor */
+.prompt-cancel-btn:active {
+  transform: scale(0.95);
+}
+
+/* Telemetria del cursor en el mapa */
 .cursor-telemetry-badge {
   position: absolute;
   bottom: 12px;
   left: 14px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  color: #94a3b8;
-  font-family: monospace;
+  background: rgba(10, 15, 28, 0.85);
+  border: 1px solid var(--color-border-subtle);
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   z-index: 800;
   pointer-events: none;
+  backdrop-filter: blur(8px);
 }
 
-/* Botón reciente vista */
+/* Boton recentrar mapa */
 .map-recenter-btn {
   position: absolute;
   bottom: 12px;
   right: 14px;
-  background: rgba(30, 41, 59, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-  padding: 5px 10px;
-  font-size: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--color-border-medium);
+  color: var(--color-text-primary);
+  padding: 6px 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   z-index: 800;
-  transition: all 0.2s;
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
 }
 
 .map-recenter-btn:hover {
-  background: rgba(51, 65, 85, 0.95);
-  border-color: #ffffff;
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.map-recenter-btn:active {
+  transform: scale(0.97);
+}
+
+.recenter-icon {
+  color: var(--color-text-secondary);
 }
 
 /* Pie del mapa */
 .mars-map-footer {
   padding: 10px 18px;
-  background: rgba(15, 23, 42, 0.9);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 15, 28, 0.85);
+  border-top: 1px solid var(--color-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .layer-info-text {
-  color: #94a3b8;
+  color: var(--color-text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .layer-info-text strong {
-  color: #f1f5f9;
+  color: var(--color-text-secondary);
 }
 
 .wmts-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: #38bdf8;
   text-decoration: none;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   flex-shrink: 0;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: rgba(56, 189, 248, 0.1);
   border: 1px solid rgba(56, 189, 248, 0.25);
-  transition: all 0.2s;
+  transition: all 140ms ease;
 }
 
 .wmts-link:hover {
-  background: rgba(56, 189, 248, 0.25);
+  background: rgba(56, 189, 248, 0.22);
   color: #ffffff;
 }
 
-/* Marcadores personalizados para Leaflet */
+/* Marcadores de Leaflet */
 .custom-mars-marker {
   background: transparent !important;
   border: none !important;
 }
 
 .marker-pin {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   border: 2px solid #ffffff;
 }
 
@@ -686,121 +847,144 @@
 
 .marker-label {
   position: absolute;
-  top: 36px;
+  top: 34px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(10, 15, 28, 0.95);
   color: #ffffff;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 9.5px;
-  font-weight: bold;
-  letter-spacing: 0.5px;
+  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   white-space: nowrap;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
-/* Tooltip de ruta */
+/* Tooltip de ruta sobre polilinea */
 .route-tooltip {
-  background: rgba(15, 23, 42, 0.9) !important;
+  background: rgba(10, 15, 28, 0.95) !important;
   color: #facc15 !important;
-  border: 1px solid #facc15 !important;
-  font-size: 12px !important;
-  font-weight: bold !important;
-  border-radius: 4px !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid rgba(250, 204, 21, 0.6) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border-radius: var(--radius-xs) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+  font-family: var(--font-mono) !important;
 }
 
-/* ========================================================= */
-/* TARJETA DE SOLICITUD Y APARTADO ORIGEN / DESTINO          */
-/* ========================================================= */
+/* --------------------------------------------------------------------------
+   8. CONSOLA DE CONFIGURACION DE RUTA (COLUMNA DERECHA)
+   -------------------------------------------------------------------------- */
 
 .route-card {
   width: 100%;
-  background: rgba(18, 22, 32, 0.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 18px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
-  padding: 22px 24px;
-  color: #ffffff;
+  background: var(--color-surface-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .route-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.route-header h2 {
-  margin: 0 0 4px 0;
-  font-size: 19px;
+.route-badge {
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.08em;
+  color: var(--color-accent-blue);
+  text-transform: uppercase;
 }
 
-.route-header p {
+.route-title {
   margin: 0;
-  font-size: 12.5px;
-  color: #cbd5e1;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
 }
 
-/* Apartado de Origen y Destino */
+.route-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.route-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Seccion de Origen y Destino */
 .origin-destination-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
 }
 
 .point-selector-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
+  background: var(--color-surface-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
   padding: 12px 14px;
-  transition: all 0.2s;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.point-selector-card.selecting {
+.point-selector-card.selecting-active {
   border-color: #38bdf8;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
   background: rgba(56, 189, 248, 0.08);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
 }
 
 .point-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
 }
 
 .point-tag {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 2px 7px;
-  border-radius: 4px;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
 }
 
 .origen-tag {
-  background: rgba(22, 163, 74, 0.25);
+  background: rgba(22, 163, 74, 0.2);
   color: #4ade80;
-  border: 1px solid rgba(22, 163, 74, 0.5);
+  border: 1px solid rgba(22, 163, 74, 0.45);
 }
 
 .destino-tag {
-  background: rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.2);
   color: #f87171;
-  border: 1px solid rgba(220, 38, 38, 0.5);
+  border: 1px solid rgba(220, 38, 38, 0.45);
 }
 
 .dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
@@ -813,12 +997,41 @@
 }
 
 .point-sublabel {
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 11.5px;
+  color: var(--color-text-dim);
 }
 
+/* Select pro */
 .point-select-row {
-  margin-bottom: 8px;
+  width: 100%;
+}
+
+.form-select-pro {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-medium);
+  background: rgba(10, 15, 28, 0.9);
+  color: var(--color-text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.form-select-pro:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.form-select-pro:focus {
+  border-color: var(--color-border-active);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.form-select-pro option {
+  background: #0d1424;
+  color: #ffffff;
 }
 
 .point-coords-bar {
@@ -826,75 +1039,96 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .coords-text {
-  color: #cbd5e1;
+  color: var(--color-text-dim);
 }
 
-.coords-text strong {
-  color: #f8fafc;
+.coords-code {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
 }
 
 .btn-pick-map {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border-medium);
+  color: var(--color-text-primary);
   padding: 4px 10px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 140ms ease;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .btn-pick-map:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .btn-pick-map.active {
   background: #38bdf8;
-  color: #0b0f19;
+  color: #060911;
   border-color: #38bdf8;
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
 }
 
-/* Swap button */
+.btn-pick-map:active {
+  transform: scale(0.96);
+}
+
+/* Boton de Intercambiar Origen y Destino */
 .swap-route-container {
   display: flex;
   justify-content: center;
-  margin: -4px 0;
+  margin: -2px 0;
 }
 
 .btn-swap-route {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px dashed rgba(255, 255, 255, 0.3);
-  color: #94a3b8;
-  padding: 3px 12px;
-  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--color-border-medium);
+  color: var(--color-text-muted);
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 500;
   border-radius: 20px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 140ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-swap-route:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  border-color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
-/* Panel de telemetría de ruta */
+.btn-swap-route:active {
+  transform: scale(0.96);
+}
+
+/* --------------------------------------------------------------------------
+   9. HUD DE TELEMETRIA EN TIEMPO REAL
+   -------------------------------------------------------------------------- */
+
 .route-telemetry-panel {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 16px;
+  background: rgba(7, 11, 22, 0.8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
 }
 
 .telemetry-item {
@@ -902,160 +1136,258 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
+  gap: 2px;
 }
 
 .telemetry-label {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-bottom: 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
 }
 
 .telemetry-value {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #facc15;
 }
 
+.telemetry-unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .telemetry-divider {
   width: 1px;
-  height: 26px;
-  background: rgba(255, 255, 255, 0.15);
+  height: 28px;
+  background: var(--color-border-subtle);
 }
 
-/* Formularios básicos */
-.form-group-basic {
-  margin-bottom: 16px;
-}
+/* --------------------------------------------------------------------------
+   10. MODULOS DE INSTRUMENTAL Y OBJETIVO
+   -------------------------------------------------------------------------- */
 
-.form-label-basic {
+.form-legend-title {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #e2e8f0;
-  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
 }
 
-.form-select-basic {
-  width: 100%;
-  padding: 8px 10px;
-  font-size: 13.5px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(15, 23, 42, 0.8);
-  color: #ffffff;
-  outline: none;
-  cursor: pointer;
-}
-
-.form-select-basic option {
-  background: #1e2433;
-  color: #ffffff;
-}
-
-.form-select-basic:focus {
-  border-color: #38bdf8;
-  background: rgba(15, 23, 42, 0.95);
-}
-
-/* Equipamiento Científico */
-.equipment-box {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
+/* Instrumental cientifico */
+.equipment-card-group {
+  background: var(--color-surface-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
   padding: 12px 14px;
-  margin-bottom: 16px;
 }
 
-.radio-row {
+.radio-selection-row {
   display: flex;
-  gap: 20px;
+  gap: 10px;
+}
+
+.radio-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.radio-pill input[type="radio"] {
+  display: none;
+}
+
+.radio-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.radio-pill.selected {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(96, 165, 250, 0.7);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.25);
+}
+
+.checkbox-instruments-list {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checkbox-list-title {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  margin-bottom: 2px;
+}
+
+.checkbox-instrument-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.checkbox-instrument-item input[type="checkbox"] {
+  display: none;
+}
+
+.checkbox-instrument-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-border-medium);
+}
+
+.checkbox-instrument-item.checked {
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: var(--color-text-primary);
+}
+
+.checkbox-custom-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-medium);
+  background: rgba(10, 15, 28, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 140ms ease;
+}
+
+.checkbox-instrument-item.checked .checkbox-custom-box {
+  background: var(--color-accent-blue);
+  border-color: var(--color-accent-blue);
+  color: #ffffff;
+}
+
+.instrument-name {
+  line-height: 1.35;
+}
+
+/* Objetivos de mision */
+.mission-goal-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.mission-goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mission-goal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-surface-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mission-goal-item input[type="radio"] {
+  display: none;
+}
+
+.mission-goal-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-border-medium);
+}
+
+.mission-goal-item.selected {
+  background: rgba(234, 88, 12, 0.12);
+  border-color: rgba(234, 88, 12, 0.5);
+  box-shadow: 0 0 12px rgba(234, 88, 12, 0.15);
+}
+
+.radio-custom-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 140ms ease;
+}
+
+.mission-goal-item.selected .radio-custom-ring {
+  border-color: var(--color-accent-mars);
+}
+
+.radio-custom-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-mars);
+}
+
+.goal-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.mission-goal-item.selected .goal-label {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.btn-submit-route {
   margin-top: 6px;
 }
 
-.radio-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  cursor: pointer;
+/* --------------------------------------------------------------------------
+   11. ANIMACIONES GLOBALES
+   -------------------------------------------------------------------------- */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.radio-option input[type="radio"] {
-  cursor: pointer;
-  accent-color: #ef4444;
-}
-
-.checkbox-list {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.checkbox-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: #f1f5f9;
-}
-
-.checkbox-option input[type="checkbox"] {
-  cursor: pointer;
-  accent-color: #ef4444;
-}
-
-/* Lista de Objetivos de Misión */
-.mission-list {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.mission-radio-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 7px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12.5px;
-  transition: all 0.15s;
-}
-
-.mission-radio-item:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-.mission-radio-item input[type="radio"] {
-  margin-top: 2px;
-  cursor: pointer;
-  accent-color: #ef4444;
-}
-
-/* Botón de Enviar Solicitud */
-.btn-submit-route {
-  width: 100%;
-  background: #ffffff;
-  color: #0b0f19;
-  border: none;
-  padding: 11px 0;
-  font-size: 14.5px;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: all 0.2s;
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.2);
-}
-
-.btn-submit-route:hover {
-  background: #e2e8f0;
-  transform: translateY(-1px);
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

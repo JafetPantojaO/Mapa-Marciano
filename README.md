@@ -1,10 +1,10 @@
-# Mapa-Marciano 🪐
+# Mapa-Marciano
 
 Aplicación web con **React** en el FrontEnd y **Node.js** en el BackEnd.
 
 ---
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
 Asegúrate de tener instalado en tu computadora:
 * [Node.js](https://nodejs.org/) (versión 18 o superior recomendada; verificado en v24)
@@ -18,7 +18,7 @@ npm -v
 
 ---
 
-## 📦 Instalación de Dependencias
+## Instalación de Dependencias
 
 Si clonas este repositorio en otra máquina o necesitas reinstalar los paquetes, ejecuta:
 
@@ -49,7 +49,7 @@ cd ..
 
 ---
 
-## 🚀 Cómo Correr la Aplicación
+## Cómo Correr la Aplicación
 
 Puedes iniciar los entornos tanto desde la raíz del proyecto como entrando individualmente a cada carpeta.
 
@@ -94,7 +94,7 @@ Puedes iniciar los entornos tanto desde la raíz del proyecto como entrando indi
 
 ---
 
-## 🏗️ Compilar para Producción (Build)
+## Compilar para Producción (Build)
 
 Para generar la versión optimizada de React:
 ```bash
@@ -108,7 +108,7 @@ Los archivos de distribución se generarán en la carpeta `FrontEnd/dist/`.
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 Mapa-Marciano/
