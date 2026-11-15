@@ -2,6 +2,8 @@ import { useState } from 'react';
 import './App.css';
 import nasaLogo from './assets/NASA_logo.webp';
 import MarsMap from './components/MarsMap';
+import MiniRouteMap from './components/MiniRouteMap';
+import RoverRuta from '../rover/rover_ruta.js';
 import {
   CAPAS_MARTE,
   LUGARES_MARTE,
@@ -13,7 +15,7 @@ import {
 } from './constants/marsData';
 
 function App() {
-  // Sesion de astronauta autenticado (en localStorage / memoria)
+  // Sesion de astronauta autenticado
   const [usuarioAutenticado, setUsuarioAutenticado] = useState(() => {
     try {
       const sesion = localStorage.getItem('astronauta_id');
@@ -28,22 +30,39 @@ function App() {
   const [password, setPassword] = useState('');
   const [errorLogin, setErrorLogin] = useState('');
 
-  // Apartado de Origen y Destino: seleccion de ubicacion actual y punto de destino
-  const [origen, setOrigen] = useState(LUGARES_MARTE[0]); // Base Central Marte
-  const [destino, setDestino] = useState(LUGARES_MARTE[1]); // Crater Jezero
+  // Apartado de Origen y Destino: seleccion de ubicacion de partida y llegada
+  const [origen, setOrigen] = useState(LUGARES_MARTE[14]); // Terra Meridiani (id: 15)
+  const [destino, setDestino] = useState(LUGARES_MARTE[22]); // Elysium Planitia (id: 23)
   const [modoSeleccionMapa, setModoSeleccionMapa] = useState(null); // 'origen' | 'destino' | null
 
   // Capa activa de mosaicos de Marte
   const [capaActivaId, setCapaActivaId] = useState(CAPAS_MARTE[0].id);
 
   // Equipamiento cientifico y objetivo de mision
-  const [llevaEquipo, setLlevaEquipo] = useState('no'); // 'si' | 'no'
-  const [equiposSeleccionados, setEquiposSeleccionados] = useState([]);
+  const [llevaEquipo, setLlevaEquipo] = useState('si'); // 'si' | 'no'
+  const [equiposSeleccionados, setEquiposSeleccionados] = useState([
+    OPCIONES_EQUIPO_CIENTIFICO[0],
+    OPCIONES_EQUIPO_CIENTIFICO[1]
+  ]);
+  const [perfilCarga, setPerfilCarga] = useState('delicada'); // 'ninguna' | 'normal' | 'delicada'
   const [objetivoMision, setObjetivoMision] = useState(OPCIONES_OBJETIVO_MISION[0]);
   const [errorRuta, setErrorRuta] = useState('');
 
-  // Estado de confirmacion de ruta activa
-  const [misionRegistrada, setMisionRegistrada] = useState(null);
+  // Lista de rutas calculadas por Dijkstra multicriterio y ruta activa seleccionada
+  const [resultadoRutas, setResultadoRutas] = useState(() => {
+    try {
+      return RoverRuta.generarListaRutas(
+        15,
+        23,
+        'delicada',
+        true,
+        [OPCIONES_EQUIPO_CIENTIFICO[0], OPCIONES_EQUIPO_CIENTIFICO[1]]
+      );
+    } catch {
+      return null;
+    }
+  });
+  const [rutaActivaId, setRutaActivaId] = useState('optima');
 
   // Manejador del Login
   const handleLogin = (e) => {
@@ -80,21 +99,21 @@ function App() {
     }
   };
 
-  // Manejador para seleccionar origen desde selector o presets
+  // Manejador para seleccionar origen desde selector
   const handleCambioOrigenSelect = (e) => {
-    const lugarEncontrado = LUGARES_MARTE.find((l) => l.nombre === e.target.value);
+    const valor = e.target.value;
+    const lugarEncontrado = LUGARES_MARTE.find((l) => String(l.id) === valor || l.nombre === valor);
     if (lugarEncontrado) {
       setOrigen(lugarEncontrado);
-      setMisionRegistrada(null);
     }
   };
 
-  // Manejador para seleccionar destino desde selector o presets
+  // Manejador para seleccionar destino desde selector
   const handleCambioDestinoSelect = (e) => {
-    const lugarEncontrado = LUGARES_MARTE.find((l) => l.nombre === e.target.value);
+    const valor = e.target.value;
+    const lugarEncontrado = LUGARES_MARTE.find((l) => String(l.id) === valor || l.nombre === valor);
     if (lugarEncontrado) {
       setDestino(lugarEncontrado);
-      setMisionRegistrada(null);
     }
   };
 
@@ -103,24 +122,45 @@ function App() {
     const tempOrigen = origen;
     setOrigen(destino);
     setDestino(tempOrigen);
-    setMisionRegistrada(null);
   };
 
-  // Distancia calculada en la esfera marciana
+  // Distancia geodésica directa en la esfera marciana
   const distanciaKm =
     origen && destino
       ? calcularDistanciaMarciana(origen.lat, origen.lon, destino.lat, destino.lon)
       : 0;
 
-  // Rumbo / Azimut en grados
+  // Rumbo en grados
   const rumboGrados =
     origen && destino
       ? calcularRumbo(origen.lat, origen.lon, destino.lat, destino.lon)
       : 0;
 
-  // Enviar solicitud de ruta
-  const handleEnviarRuta = (e) => {
-    e.preventDefault();
+  // Encontrar el ID más cercano en los 25 puntos oficiales de Marte
+  const resolverIdPunto = (punto) => {
+    if (!punto) return 1;
+    if (typeof punto.id === 'number') return punto.id;
+    const encontrado = LUGARES_MARTE.find((l) => l.nombre === punto.nombre);
+    if (encontrado && typeof encontrado.id === 'number') return encontrado.id;
+
+    // Buscar el punto de la red más cercano geométricamente
+    let mejorDist = Infinity;
+    let mejorId = 1;
+    LUGARES_MARTE.forEach((l) => {
+      if (typeof l.id === 'number') {
+        const d = Math.hypot(l.lat - punto.lat, l.lon - punto.lon);
+        if (d < mejorDist) {
+          mejorDist = d;
+          mejorId = l.id;
+        }
+      }
+    });
+    return mejorId;
+  };
+
+  // Calcular las rutas alternativas considerando todos los factores
+  const handleCalcularRutas = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     setErrorRuta('');
 
     if (!origen || !destino) {
@@ -128,37 +168,40 @@ function App() {
       return;
     }
 
-    if (origen.nombre === destino.nombre) {
-      setErrorRuta('El punto de origen y el de destino deben ser diferentes.');
+    const idO = resolverIdPunto(origen);
+    const idD = resolverIdPunto(destino);
+
+    if (idO === idD) {
+      setErrorRuta('El punto de origen y el de destino deben ser diferentes en la cartografía de Marte.');
       return;
     }
 
     if (llevaEquipo === 'si' && equiposSeleccionados.length === 0) {
-      setErrorRuta('Seleccione al menos un instrumento o equipo cientifico de la lista.');
+      setErrorRuta('Ha indicado que lleva equipo científico a bordo: seleccione al menos un instrumento de la lista.');
       return;
     }
 
-    const nuevaMision = {
-      astronauta: usuarioAutenticado ? usuarioAutenticado.id : astronautId,
-      origen: origen.nombre,
-      origenCoords: formatearCoordenadas(origen.lat, origen.lon),
-      destino: destino.nombre,
-      destinoCoords: formatearCoordenadas(destino.lat, destino.lon),
-      distanciaKm,
-      rumboGrados,
-      llevaEquipo: llevaEquipo === 'si',
-      equipos: llevaEquipo === 'si' ? equiposSeleccionados : [],
-      objetivo: objetivoMision
-    };
+    const res = RoverRuta.generarListaRutas(
+      idO,
+      idD,
+      perfilCarga,
+      llevaEquipo === 'si',
+      equiposSeleccionados
+    );
 
-    setMisionRegistrada(nuevaMision);
+    if (!res.ok) {
+      setErrorRuta(res.mensaje || 'No se pudo generar una ruta segura con los parámetros especificados.');
+      return;
+    }
+
+    setResultadoRutas(res);
+    // Seleccionar por defecto la ruta recomendada (optima)
+    if (res.rutas && res.rutas.length > 0) {
+      setRutaActivaId(res.rutas[0].id);
+    }
   };
 
-  // Abrir solicitud en otra pestana del navegador
-  const handleAbrirEnOtraPestana = () => {
-    const url = `${window.location.origin}${window.location.pathname}?tab=solicitud-ruta`;
-    window.open(url, '_blank');
-  };
+
 
   // Cerrar sesion
   const handleCerrarSesion = () => {
@@ -166,7 +209,8 @@ function App() {
     setAstronautId('');
     setPassword('');
     setErrorLogin('');
-    setMisionRegistrada(null);
+    setResultadoRutas(null);
+    setRutaActivaId(null);
     try {
       localStorage.removeItem('astronauta_id');
     } catch {
@@ -174,21 +218,27 @@ function App() {
     }
   };
 
+  // Ruta actualmente seleccionada para visualizar en el mapa principal
+  const rutaActiva =
+    resultadoRutas?.rutas?.find((r) => r.id === rutaActivaId) ||
+    resultadoRutas?.rutas?.[0] ||
+    null;
+
   return (
     <div className="app-container">
       {/* VISTA 1: EXCLUSIVAMENTE LOGIN CUANDO NO HAY SESION ACTIVA */}
       {!usuarioAutenticado ? (
         <main className="login-portal-wrapper">
-          <div className="login-card-professional">
+          <div className="login-card-professional login-solid-rectangular">
             <div className="login-brand-header">
-              <div className="login-logo-ring">
+              <div className="login-logo-ring login-logo-rectangular">
                 <img src={nasaLogo} alt="NASA Insignia" className="login-nasa-logo" />
               </div>
               <div className="login-system-heading">
-                <span className="login-subtag">CENTRO DE CONTROL DE MISIONES</span>
+                <span className="login-subtag">CENTRO DE CONTROL DE MISIONES MARTE</span>
                 <h1 className="login-title">Control Marciano</h1>
                 <p className="login-description">
-                  Terminal de acceso a cartografia y planificacion de trayectorias en superficie.
+                  Terminal segura de cartografía y navegación de vehículos rover en superficie marciana.
                 </p>
               </div>
             </div>
@@ -265,7 +315,7 @@ function App() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <rect x="3" y="11" width="18" height="11" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </span>
@@ -282,8 +332,9 @@ function App() {
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary-action">
-                <span>Acceder a la Mision</span>
+              {/* Boton con texto cambiado a 'iniciar seccion' y bordes rectangulares */}
+              <button type="submit" className="btn-primary-action btn-login-rectangular">
+                <span>iniciar seccion</span>
                 <svg
                   viewBox="0 0 24 24"
                   width="16"
@@ -307,22 +358,22 @@ function App() {
           </div>
         </main>
       ) : (
-        /* VISTA 2: APARTADO DE MISION ACTIVO EXCLUSIVAMENTE TRAS INICIAR SESION */
-        <main className="main-mission-container">
+        /* VISTA 2: SESIÓN ACTIVA - MAPA PROMINENTE ARRIBA Y PLANIFICACIÓN BAJO DEL MAPA */
+        <main className="main-mission-container full-width-layout">
           {/* Barra Superior de Control de Mision */}
           <header className="mission-top-header">
             <div className="mission-identity">
               <img src={nasaLogo} alt="NASA" className="header-nasa-badge" />
               <div className="identity-text">
-                <span className="identity-sub">SISTEMA DE NAVEGACION MARCIANA</span>
-                <h1 className="identity-title">Operaciones de Superficie</h1>
+                <span className="identity-sub">SISTEMA DE NAVEGACIÓN Y CARTOGRAFÍA MARCIANA</span>
+                <h1 className="identity-title">Centro de Operaciones del Rover</h1>
               </div>
             </div>
 
             <div className="mission-header-controls">
-              <div className="system-status-indicator" title="Conexion establecida con telemetria de Marte">
+              <div className="system-status-indicator" title="Conexión en tiempo real con satélites MRO y MAVEN">
                 <span className="status-ping-dot" aria-hidden="true" />
-                <span className="status-label">Telemetria en Linea</span>
+                <span className="status-label">Telemetría MOLA/TES en Línea</span>
               </div>
 
               <div className="astronaut-chip">
@@ -348,33 +399,9 @@ function App() {
 
               <button
                 type="button"
-                className="btn-header-secondary"
-                onClick={handleAbrirEnOtraPestana}
-                title="Abrir la consola de navegacion en otra ventana del navegador"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="14"
-                  height="14"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-                <span>Nueva Ventana</span>
-              </button>
-
-              <button
-                type="button"
                 className="btn-header-logout"
                 onClick={handleCerrarSesion}
-                title="Cerrar sesion del operador y volver al portal de acceso"
+                title="Cerrar sesión del operador"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -391,323 +418,181 @@ function App() {
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
-                <span>Cerrar Sesion</span>
+                <span>Cerrar Sesión</span>
               </button>
             </div>
           </header>
 
-          {/* Banner de confirmacion de mision registrada */}
-          {misionRegistrada && (
-            <section className="mission-success-banner" role="region" aria-label="Confirmacion de Mision">
-              <div className="banner-icon-box">
-                <svg
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <div className="banner-details">
-                <h4 className="banner-heading">Ruta registrada y fijada en cartografia</h4>
-                <p className="banner-text">
-                  Trayectoria desde <strong>{misionRegistrada.origen}</strong> hasta{' '}
-                  <strong>{misionRegistrada.destino}</strong> ({misionRegistrada.distanciaKm.toLocaleString()} km a rumbo {misionRegistrada.rumboGrados}°).
-                  {misionRegistrada.llevaEquipo
-                    ? ` Equipamiento: ${misionRegistrada.equipos.join(', ')}.`
-                    : ' Sin carga instrumental asignada.'}{' '}
-                  Mision: <em>{misionRegistrada.objetivo}</em>.
+          {/* SECCIÓN 1: EL USUARIO SOLO VERÁ EL MAPA (PROMINENTE, ANCHO COMPLETO CON LÍMITES DE ZOOM) */}
+          <section className="map-hero-section" aria-label="Mapa Global de Superficie Marciana">
+            <MarsMap
+              origen={origen}
+              destino={destino}
+              onSelectOrigen={(nuevoOrigen) => {
+                setOrigen(nuevoOrigen);
+              }}
+              onSelectDestino={(nuevoDestino) => {
+                setDestino(nuevoDestino);
+              }}
+              modoSeleccion={modoSeleccionMapa}
+              setModoSeleccion={setModoSeleccionMapa}
+              capaActivaId={capaActivaId}
+              onChangeCapa={setCapaActivaId}
+              rutaActiva={rutaActiva}
+            />
+          </section>
+
+          {/* SECCIÓN 2: PLANIFICACIÓN DE LA TRAYECTORIA APARECE BAJO DEL MAPA */}
+          <section className="below-map-planning-section" aria-label="Planificación de Trayectoria">
+            <div className="planning-panel-card">
+              <div className="planning-header">
+                <div className="planning-badge">MODULO DE PLANIFICACION BAJO EL MAPA</div>
+                <h2 className="planning-title">Planificación de la Trayectoria y Parámetros del Rover</h2>
+                <p className="planning-subtitle">
+                  Configure los puntos de origen y destino, especifique si lleva material científico y el objetivo de la misión para generar y comparar la lista de rutas alternativas.
                 </p>
               </div>
-              <button
-                type="button"
-                className="banner-close-btn"
-                onClick={() => setMisionRegistrada(null)}
-                aria-label="Cerrar notificacion de ruta"
-              >
-                Cerrar
-              </button>
-            </section>
-          )}
 
-          {/* Cuadricula Operativa: Cartografia + Planificacion de Trayectoria */}
-          <div className="mission-grid-layout">
-            {/* Columna Izquierda: Cartografia de Marte con capas WMTS */}
-            <section className="map-column" aria-label="Cartografia de Superficie">
-              <MarsMap
-                origen={origen}
-                destino={destino}
-                onSelectOrigen={(nuevoOrigen) => {
-                  setOrigen(nuevoOrigen);
-                  setMisionRegistrada(null);
-                }}
-                onSelectDestino={(nuevoDestino) => {
-                  setDestino(nuevoDestino);
-                  setMisionRegistrada(null);
-                }}
-                modoSeleccion={modoSeleccionMapa}
-                setModoSeleccion={setModoSeleccionMapa}
-                capaActivaId={capaActivaId}
-                onChangeCapa={setCapaActivaId}
-              />
-            </section>
-
-            {/* Columna Derecha: Consola de Configuracion de Mision */}
-            <section className="form-column" aria-label="Planificacion de Ruta">
-              <div className="route-card">
-                <div className="route-header">
-                  <div className="route-badge">MODULO DE NAVEGACION</div>
-                  <h2 className="route-title">Planificacion de Trayectoria</h2>
-                  <p className="route-subtitle">
-                    Defina punto de origen y llegada para trazar y calcular parametros de desplazamiento.
-                  </p>
+              {errorRuta && (
+                <div className="alert-banner alert-banner-error" role="alert">
+                  <svg
+                    className="alert-icon"
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{errorRuta}</span>
                 </div>
+              )}
 
-                {errorRuta && (
-                  <div className="alert-banner alert-banner-error" role="alert">
-                    <svg
-                      className="alert-icon"
-                      viewBox="0 0 24 24"
-                      width="16"
-                      height="16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>{errorRuta}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleEnviarRuta} className="route-form">
-                  {/* SELECCION ORIGEN Y DESTINO */}
-                  <div className="origin-destination-section">
-                    {/* Tarjeta de Origen */}
-                    <div
-                      className={`point-selector-card ${
-                        modoSeleccionMapa === 'origen' ? 'selecting-active' : ''
-                      }`}
-                    >
-                      <div className="point-card-header">
-                        <div className="point-tag origen-tag">
-                          <span className="dot dot-origen" aria-hidden="true" />
-                          <span>PUNTO DE ORIGEN</span>
-                        </div>
-                        <span className="point-sublabel">Ubicacion de partida</span>
-                      </div>
-
-                      <div className="point-select-row">
-                        <select
-                          className="form-select-pro"
-                          value={
-                            LUGARES_MARTE.some((l) => l.nombre === origen?.nombre)
-                              ? origen.nombre
-                              : 'custom'
-                          }
-                          onChange={handleCambioOrigenSelect}
-                          aria-label="Seleccionar punto de origen"
-                        >
-                          {LUGARES_MARTE.map((lugar) => (
-                            <option key={lugar.id} value={lugar.nombre}>
-                              {lugar.nombre} ({formatearCoordenadas(lugar.lat, lugar.lon)})
-                            </option>
-                          ))}
-                          {!LUGARES_MARTE.some((l) => l.nombre === origen?.nombre) && (
-                            <option value="custom">
-                              [Punto Fijado] {origen ? origen.nombre : 'Ubicacion manual'}
-                            </option>
-                          )}
-                        </select>
-                      </div>
-
-                      <div className="point-coords-bar">
-                        <span className="coords-text">
-                          Coords:{' '}
-                          <strong className="coords-code">
-                            {origen ? formatearCoordenadas(origen.lat, origen.lon) : 'Sin fijar'}
-                          </strong>
-                        </span>
-                        <button
-                          type="button"
-                          className={`btn-pick-map ${
-                            modoSeleccionMapa === 'origen' ? 'active' : ''
-                          }`}
-                          onClick={() =>
-                            setModoSeleccionMapa(modoSeleccionMapa === 'origen' ? null : 'origen')
-                          }
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="13"
-                            height="13"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                            <circle cx="12" cy="10" r="3" />
-                          </svg>
-                          <span>{modoSeleccionMapa === 'origen' ? 'Fijando...' : 'Fijar en Mapa'}</span>
-                        </button>
-                      </div>
+              <form onSubmit={handleCalcularRutas} className="planning-form">
+                {/* 1. SELECCIÓN DE PUNTOS: ORIGEN Y DESTINO */}
+                <div className="points-selection-grid">
+                  {/* Tarjeta de Origen */}
+                  <div className={`point-selector-box ${modoSeleccionMapa === 'origen' ? 'highlight-mode' : ''}`}>
+                    <div className="point-box-top">
+                      <span className="dot dot-origen" />
+                      <span className="point-box-role">PUNTO DE ORIGEN</span>
                     </div>
 
-                    {/* Boton de Intercambiar Origen y Destino */}
-                    <div className="swap-route-container">
+                    <select
+                      className="form-select-pro"
+                      value={origen?.id || ''}
+                      onChange={handleCambioOrigenSelect}
+                      aria-label="Seleccionar punto de origen"
+                    >
+                      {LUGARES_MARTE.map((lugar) => (
+                        <option key={lugar.id} value={lugar.id}>
+                          {lugar.nombre} ({formatearCoordenadas(lugar.lat, lugar.lon)})
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="point-box-coords">
+                      <span>Coords:</span>
+                      <strong className="coords-code">
+                        {origen ? formatearCoordenadas(origen.lat, origen.lon) : 'Sin fijar'}
+                      </strong>
                       <button
                         type="button"
-                        className="btn-swap-route"
-                        onClick={handleInvertirRuta}
-                        title="Intercambiar puntos de origen y destino"
-                        aria-label="Invertir puntos de origen y destino"
+                        className={`btn-tag-map ${modoSeleccionMapa === 'origen' ? 'active' : ''}`}
+                        onClick={() =>
+                          setModoSeleccionMapa(modoSeleccionMapa === 'origen' ? null : 'origen')
+                        }
                       >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="14"
-                          height="14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <polyline points="7 10 12 15 17 10" />
-                          <polyline points="17 14 12 9 7 14" />
-                        </svg>
-                        <span>Invertir Trayectoria</span>
+                        {modoSeleccionMapa === 'origen' ? 'Fijando en Mapa...' : 'Fijar en Mapa'}
                       </button>
                     </div>
+                  </div>
 
-                    {/* Tarjeta de Destino */}
-                    <div
-                      className={`point-selector-card ${
-                        modoSeleccionMapa === 'destino' ? 'selecting-active' : ''
-                      }`}
+                  {/* Botón central para invertir ruta */}
+                  <div className="swap-button-col">
+                    <button
+                      type="button"
+                      className="btn-swap-vertical"
+                      onClick={handleInvertirRuta}
+                      title="Intercambiar puntos de partida y llegada"
+                      aria-label="Invertir origen y destino"
                     >
-                      <div className="point-card-header">
-                        <div className="point-tag destino-tag">
-                          <span className="dot dot-destino" aria-hidden="true" />
-                          <span>PUNTO DE DESTINO</span>
-                        </div>
-                        <span className="point-sublabel">Objetivo de llegada</span>
-                      </div>
-
-                      <div className="point-select-row">
-                        <select
-                          className="form-select-pro"
-                          value={
-                            LUGARES_MARTE.some((l) => l.nombre === destino?.nombre)
-                              ? destino.nombre
-                              : 'custom'
-                          }
-                          onChange={handleCambioDestinoSelect}
-                          aria-label="Seleccionar punto de destino"
-                        >
-                          {LUGARES_MARTE.map((lugar) => (
-                            <option key={lugar.id} value={lugar.nombre}>
-                              {lugar.nombre} ({formatearCoordenadas(lugar.lat, lugar.lon)})
-                            </option>
-                          ))}
-                          {!LUGARES_MARTE.some((l) => l.nombre === destino?.nombre) && (
-                            <option value="custom">
-                              [Punto Fijado] {destino ? destino.nombre : 'Ubicacion manual'}
-                            </option>
-                          )}
-                        </select>
-                      </div>
-
-                      <div className="point-coords-bar">
-                        <span className="coords-text">
-                          Coords:{' '}
-                          <strong className="coords-code">
-                            {destino ? formatearCoordenadas(destino.lat, destino.lon) : 'Sin fijar'}
-                          </strong>
-                        </span>
-                        <button
-                          type="button"
-                          className={`btn-pick-map ${
-                            modoSeleccionMapa === 'destino' ? 'active' : ''
-                          }`}
-                          onClick={() =>
-                            setModoSeleccionMapa(modoSeleccionMapa === 'destino' ? null : 'destino')
-                          }
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="13"
-                            height="13"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <circle cx="12" cy="12" r="10" />
-                            <circle cx="12" cy="12" r="6" />
-                            <circle cx="12" cy="12" r="2" />
-                          </svg>
-                          <span>{modoSeleccionMapa === 'destino' ? 'Fijando...' : 'Fijar en Mapa'}</span>
-                        </button>
-                      </div>
-                    </div>
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="21" />
+                        <polyline points="7 16 12 21 17 16" />
+                      </svg>
+                      <span>Invertir</span>
+                    </button>
                   </div>
 
-                  {/* TELEMETRIA EN TIEMPO REAL */}
-                  <div className="route-telemetry-panel" aria-label="Parametros de navegacion calculados">
-                    <div className="telemetry-item">
-                      <span className="telemetry-label">Distancia Marciana</span>
-                      <span className="telemetry-value tabular-num">
-                        {distanciaKm.toLocaleString()} <span className="telemetry-unit">km</span>
-                      </span>
+                  {/* Tarjeta de Destino */}
+                  <div className={`point-selector-box ${modoSeleccionMapa === 'destino' ? 'highlight-mode' : ''}`}>
+                    <div className="point-box-top">
+                      <span className="dot dot-destino" />
+                      <span className="point-box-role">PUNTO DE DESTINO</span>
                     </div>
-                    <div className="telemetry-divider" aria-hidden="true" />
-                    <div className="telemetry-item">
-                      <span className="telemetry-label">Rumbo (Azimut)</span>
-                      <span className="telemetry-value tabular-num">
-                        {rumboGrados}<span className="telemetry-unit">°</span>
-                      </span>
-                    </div>
-                    <div className="telemetry-divider" aria-hidden="true" />
-                    <div className="telemetry-item">
-                      <span className="telemetry-label">Tiempo Estimado</span>
-                      <span className="telemetry-value tabular-num">
-                        {distanciaKm > 0
-                          ? `${Math.max(1, Math.round(distanciaKm / 0.15))}`
-                          : '0'} <span className="telemetry-unit">h aprox.</span>
-                      </span>
+
+                    <select
+                      className="form-select-pro"
+                      value={destino?.id || ''}
+                      onChange={handleCambioDestinoSelect}
+                      aria-label="Seleccionar punto de destino"
+                    >
+                      {LUGARES_MARTE.map((lugar) => (
+                        <option key={lugar.id} value={lugar.id}>
+                          {lugar.nombre} ({formatearCoordenadas(lugar.lat, lugar.lon)})
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="point-box-coords">
+                      <span>Coords:</span>
+                      <strong className="coords-code">
+                        {destino ? formatearCoordenadas(destino.lat, destino.lon) : 'Sin fijar'}
+                      </strong>
+                      <button
+                        type="button"
+                        className={`btn-tag-map ${modoSeleccionMapa === 'destino' ? 'active' : ''}`}
+                        onClick={() =>
+                          setModoSeleccionMapa(modoSeleccionMapa === 'destino' ? null : 'destino')
+                        }
+                      >
+                        {modoSeleccionMapa === 'destino' ? 'Fijando en Mapa...' : 'Fijar en Mapa'}
+                      </button>
                     </div>
                   </div>
+                </div>
 
-                  {/* INSTRUMENTACION Y EQUIPO CIENTIFICO */}
-                  <div className="equipment-card-group">
-                    <span className="form-legend-title">¿Lleva algun equipo cientifico a bordo?</span>
-                    <div className="radio-selection-row" role="radiogroup">
+                {/* 2. OPCIONES DE CARGA Y MATERIAL CIENTÍFICO */}
+                <div className="parameters-panel-grid">
+                  {/* ¿Lleva material / equipo científico? */}
+                  <div className="param-block">
+                    <div className="param-block-header">
+                      <span className="param-title">¿Lleva material / equipo científico a bordo?</span>
+                      <span className="param-hint">Afecta los límites de pendiente, viento y temperatura</span>
+                    </div>
+
+                    <div className="radio-selection-row">
                       <label className={`radio-pill ${llevaEquipo === 'si' ? 'selected' : ''}`}>
                         <input
                           type="radio"
                           name="llevaEquipo"
                           value="si"
                           checked={llevaEquipo === 'si'}
-                          onChange={() => setLlevaEquipo('si')}
+                          onChange={() => {
+                            setLlevaEquipo('si');
+                            setPerfilCarga('delicada');
+                          }}
                         />
-                        <span>Si</span>
+                        <span>Sí, lleva material científico</span>
                       </label>
                       <label className={`radio-pill ${llevaEquipo === 'no' ? 'selected' : ''}`}>
                         <input
@@ -717,100 +602,317 @@ function App() {
                           checked={llevaEquipo === 'no'}
                           onChange={() => {
                             setLlevaEquipo('no');
+                            setPerfilCarga('normal');
                             setEquiposSeleccionados([]);
                           }}
                         />
-                        <span>No</span>
+                        <span>No lleva instrumental especial</span>
                       </label>
                     </div>
 
+                    {/* Instrumental específico si lleva equipo */}
                     {llevaEquipo === 'si' && (
-                      <div className="checkbox-instruments-list">
-                        <span className="checkbox-list-title">Especifique el instrumental cientifico:</span>
-                        {OPCIONES_EQUIPO_CIENTIFICO.map((eq) => {
-                          const estaMarcado = equiposSeleccionados.includes(eq);
-                          return (
-                            <label
-                              key={eq}
-                              className={`checkbox-instrument-item ${estaMarcado ? 'checked' : ''}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={estaMarcado}
-                                onChange={() => handleToggleEquipo(eq)}
-                              />
-                              <span className="checkbox-custom-box" aria-hidden="true">
-                                {estaMarcado && (
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    width="12"
-                                    height="12"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="3"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                )}
-                              </span>
-                              <span className="instrument-name">{eq}</span>
-                            </label>
-                          );
-                        })}
+                      <div className="instrument-list-wrapper">
+                        <span className="instrument-list-label">
+                          Instrumentos científicos a transportar (se evaluará su seguridad en cada ruta):
+                        </span>
+                        <div className="instrument-grid">
+                          {OPCIONES_EQUIPO_CIENTIFICO.map((eq) => {
+                            const seleccionado = equiposSeleccionados.includes(eq);
+                            return (
+                              <label
+                                key={eq}
+                                className={`instrument-chip ${seleccionado ? 'checked' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={seleccionado}
+                                  onChange={() => handleToggleEquipo(eq)}
+                                />
+                                <span className="custom-check-box">
+                                  {seleccionado && (
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
+                                </span>
+                                <span className="chip-text">{eq}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* OBJETIVO DE LA MISION */}
-                  <div className="mission-goal-group">
-                    <span className="form-legend-title">Objetivo principal de la mision marciana</span>
-                    <div className="mission-goals-list" role="radiogroup">
-                      {OPCIONES_OBJETIVO_MISION.map((mision) => {
-                        const seleccionada = objetivoMision === mision;
-                        return (
-                          <label
-                            key={mision}
-                            className={`mission-goal-item ${seleccionada ? 'selected' : ''}`}
-                          >
-                            <input
-                              type="radio"
-                              name="objetivoMision"
-                              value={mision}
-                              checked={seleccionada}
-                              onChange={() => setObjetivoMision(mision)}
-                            />
-                            <span className="radio-custom-ring" aria-hidden="true">
-                              {seleccionada && <span className="radio-custom-dot" />}
-                            </span>
-                            <span className="goal-label">{mision}</span>
-                          </label>
-                        );
-                      })}
+                  {/* Perfil de carga del Rover y Objetivo de Misión */}
+                  <div className="param-block">
+                    <div className="param-block-header">
+                      <span className="param-title">Perfil de Carga del Rover</span>
+                      <span className="param-hint">Restricciones mecánicas y térmicas de la misión</span>
+                    </div>
+
+                    <div className="profile-selector-group">
+                      <label className={`profile-card-option ${perfilCarga === 'delicada' ? 'active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="perfilCarga"
+                          value="delicada"
+                          checked={perfilCarga === 'delicada'}
+                          onChange={() => setPerfilCarga('delicada')}
+                        />
+                        <div className="profile-card-content">
+                          <strong>Instrumentos Delicados</strong>
+                          <small>Límite: pend. 10°, viento 20 m/s, polvo 2.0 tau, temp. -20° a 30°C</small>
+                        </div>
+                      </label>
+
+                      <label className={`profile-card-option ${perfilCarga === 'normal' ? 'active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="perfilCarga"
+                          value="normal"
+                          checked={perfilCarga === 'normal'}
+                          onChange={() => setPerfilCarga('normal')}
+                        />
+                        <div className="profile-card-content">
+                          <strong>Carga Normal</strong>
+                          <small>Límite: pend. 20°, vientos moderados, suspensión estándar</small>
+                        </div>
+                      </label>
+
+                      <label className={`profile-card-option ${perfilCarga === 'ninguna' ? 'active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="perfilCarga"
+                          value="ninguna"
+                          checked={perfilCarga === 'ninguna'}
+                          onChange={() => setPerfilCarga('ninguna')}
+                        />
+                        <div className="profile-card-content">
+                          <strong>Sin Carga Especial</strong>
+                          <small>Máxima tolerancia a pendientes de hasta 25° y vientos de 30 m/s</small>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Objetivo de la Misión */}
+                    <div className="mission-goal-container">
+                      <label htmlFor="select-goal" className="field-label">
+                        Objetivo de la Misión Marciana:
+                      </label>
+                      <select
+                        id="select-goal"
+                        className="form-select-pro"
+                        value={objetivoMision}
+                        onChange={(e) => setObjetivoMision(e.target.value)}
+                      >
+                        {OPCIONES_OBJETIVO_MISION.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
+                </div>
 
-                  <button type="submit" className="btn-primary-action btn-submit-route">
-                    <span>Confirmar y Registrar Mision</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="16"
-                      height="16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
+                {/* Botón de Calcular y Analizar Rutas */}
+                <div className="planning-action-row">
+                  <div className="distance-quick-summary">
+                    <span>Línea de visión: <strong>{distanciaKm.toLocaleString()} km</strong> (Rumbo: {rumboGrados}°)</span>
+                  </div>
+
+                  <button type="submit" className="btn-primary-action btn-calculate-routes">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
+                    <span>Calcular y Evaluar Rutas del Rover</span>
                   </button>
-                </form>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          {/* SECCIÓN 3: LISTA DE RUTAS CON PEQUEÑOS MAPAS Y EVALUACIÓN DE FACTORES (PROS Y CONTRAS) */}
+          {resultadoRutas && resultadoRutas.rutas && (
+            <section className="routes-comparison-section" aria-label="Lista de Rutas Evaluadas">
+              <div className="comparison-header">
+                <div>
+                  <span className="comparison-badge">ANÁLISIS MULTICRITERIO DE NAVEGACIÓN</span>
+                  <h3 className="comparison-title">
+                    Lista de Rutas Disponibles para el Rover
+                  </h3>
+                  <p className="comparison-subtitle">
+                    Cada ruta considera los factores de <strong>Superficie</strong> (pendiente y relieve), <strong>Tiempo Atmosférico</strong> (viento y opacidad de polvo), <strong>Térmico</strong> (rango térmico diurno/nocturno) y <strong>Material Científico</strong> a bordo con sus respectivos pros y contras.
+                  </p>
+                </div>
+                {rutaActiva && (
+                  <div className="active-route-pill">
+                    <span>Ruta Proyectada en Mapa:</span>
+                    <strong style={{ color: rutaActiva.color }}>{rutaActiva.nombre}</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Grid de pequeños mapas con la ruta dibujada y pros/contras */}
+              <div className="routes-cards-grid">
+                {resultadoRutas.rutas.map((r) => {
+                  const esSeleccionada = rutaActivaId === r.id;
+                  return (
+                    <article
+                      key={r.id}
+                      className={`route-card-item ${esSeleccionada ? 'is-selected' : ''}`}
+                    >
+                      {/* Pequeño mapa de la ruta dibujada */}
+                      <div className="mini-map-wrapper">
+                        <MiniRouteMap route={r} isSelected={esSeleccionada} />
+                        <div className="mini-map-floating-tag">
+                          <span className="route-strategy-badge" style={{ backgroundColor: r.color }}>
+                            {r.badge}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Contenido analítico de la tarjeta */}
+                      <div className="route-card-body">
+                        <div className="route-title-line">
+                          <h4 className="route-variant-name">{r.nombre}</h4>
+                          <div className="safety-score-badge" title="Puntuación de seguridad global">
+                            <span>Score:</span>
+                            <strong>{r.score}/100</strong>
+                          </div>
+                        </div>
+
+                        <p className="route-card-desc">{r.descripcionCorta}</p>
+
+                        {/* Métricas clave */}
+                        <div className="route-metrics-bar">
+                          <div className="metric-cell">
+                            <span className="metric-label">Distancia</span>
+                            <span className="metric-val">{r.distanciaKm.toLocaleString()} km</span>
+                          </div>
+                          <div className="metric-cell">
+                            <span className="metric-label">Tiempo Est.</span>
+                            <span className="metric-val">{r.horasEstimadas} h</span>
+                          </div>
+                          <div className="metric-cell">
+                            <span className="metric-label">Paradas</span>
+                            <span className="metric-val">{r.paradas.length} zonas</span>
+                          </div>
+                        </div>
+
+                        {/* Desglose de Factores: Superficie, Clima, Térmico, Material Científico */}
+                        <div className="route-factors-breakdown">
+                          {/* Superficie */}
+                          <div className="factor-row">
+                            <span className="factor-name">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M8 3l4 8 5-5 5 15H2L8 3z" />
+                              </svg>
+                              Superficie:
+                            </span>
+                            <span className="factor-detail">
+                              Pendiente máx: <strong>{r.factores.superficie.pendienteMax.toFixed(1)}°</strong> (prom: {r.factores.superficie.pendienteProm.toFixed(1)}°) &bull; {r.factores.superficie.estado}
+                            </span>
+                          </div>
+
+                          {/* Tiempo Atmosférico */}
+                          <div className="factor-row">
+                            <span className="factor-name">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
+                              </svg>
+                              Clima Marciano:
+                            </span>
+                            <span className="factor-detail">
+                              Viento máx: <strong>{r.factores.clima.vientoMax.toFixed(1)} m/s</strong> &bull; Polvo: {r.factores.clima.polvoProm.toFixed(2)} tau ({r.factores.clima.estado})
+                            </span>
+                          </div>
+
+                          {/* Térmico */}
+                          <div className="factor-row">
+                            <span className="factor-name">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                              </svg>
+                              Térmico:
+                            </span>
+                            <span className="factor-detail">
+                              Rango: <strong>{r.factores.termico.tMin}°C a {r.factores.termico.tMax}°C</strong> (&Delta; {r.factores.termico.oscilacion}°C)
+                            </span>
+                          </div>
+
+                          {/* Material Científico */}
+                          {llevaEquipo === 'si' && (
+                            <div className="factor-row factor-instrument-row">
+                              <span className="factor-name">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <polygon points="12 6 15 11 20 12 16 16 17 21 12 18 7 21 8 16 4 12 9 11 12 6" />
+                                </svg>
+                                Mat. Científico:
+                              </span>
+                              <span className="factor-detail">
+                                {r.factores.materialCientifico.diagnostico}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Pros y Contras */}
+                        <div className="pros-cons-container">
+                          <div className="pros-block">
+                            <span className="pro-header">Ventajas (Pros):</span>
+                            <ul className="pro-list">
+                              {r.pros.map((p, i) => (
+                                <li key={i}>{p}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div className="cons-block">
+                            <span className="con-header">Desventajas (Contras):</span>
+                            <ul className="con-list">
+                              {r.contras.map((c, i) => (
+                                <li key={i}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* Waypoints */}
+                        <div className="waypoints-summary">
+                          <span className="waypoints-label">Waypoints:</span>
+                          <span className="waypoints-names">
+                            {r.paradas.map((p) => p.nombre).join(' &rarr; ')}
+                          </span>
+                        </div>
+
+                        {/* Botón de Selección */}
+                        <button
+                          type="button"
+                          className={`btn-select-route ${esSeleccionada ? 'btn-selected' : ''}`}
+                          onClick={() => setRutaActivaId(r.id)}
+                        >
+                          {esSeleccionada ? (
+                            <>
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              <span>Ruta Seleccionada para la Misión</span>
+                            </>
+                          ) : (
+                            <span>Elegir esta ruta y ver en mapa principal</span>
+                          )}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
-          </div>
+          )}
         </main>
       )}
     </div>

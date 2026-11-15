@@ -1,4 +1,5 @@
 // Datos y constantes para la exploración cartográfica de Marte
+import RoverRuta from '../../rover/rover_ruta.js';
 
 export const RADIO_MARTE_KM = 3389.5; // Radio volumétrico medio de Marte
 
@@ -12,7 +13,8 @@ export const CAPAS_MARTE = [
     wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw/1.0.0/WMTSCapabilities.xml',
     tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw/1.0.0/default/default028mm/{z}/{y}/{x}.png',
     fallbackExt: 'jpg',
-    maxZoom: 7,
+    minZoom: 1,
+    maxZoom: 6,
     colorTema: '#e07a5f'
   },
   {
@@ -23,7 +25,8 @@ export const CAPAS_MARTE = [
     wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Thermal_Inertia/1.0.0/WMTSCapabilities.xml',
     tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Thermal_Inertia/1.0.0/default/default028mm/{z}/{y}/{x}.png',
     fallbackExt: 'jpg',
-    maxZoom: 6,
+    minZoom: 1,
+    maxZoom: 5,
     colorTema: '#3d5a80'
   },
   {
@@ -34,117 +37,53 @@ export const CAPAS_MARTE = [
     wmtsCapabilities: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Dust/1.0.0/WMTSCapabilities.xml',
     tileUrl: 'https://trek.nasa.gov/tiles/Mars/EQ/TES_Dust/1.0.0/default/default028mm/{z}/{y}/{x}.png',
     fallbackExt: 'jpg',
-    maxZoom: 6,
+    minZoom: 1,
+    maxZoom: 5,
     colorTema: '#ee6c4d'
   }
 ];
 
-// Lugares emblemáticos y bases de Marte con coordenadas reales
-export const LUGARES_MARTE = [
-  {
-    id: 'base-central',
-    nombre: 'Base Central Marte',
-    lat: 0.0,
-    lon: 0.0,
-    desc: 'Centro de comando en Meridiani Planum'
-  },
-  {
-    id: 'jezero',
-    nombre: 'Cráter Jezero',
-    lat: 18.38,
-    lon: 77.58,
-    desc: 'Zona de exploración del rover Perseverance (antiguo delta fluvial)'
-  },
-  {
-    id: 'gale',
-    nombre: 'Cráter Gale',
-    lat: -4.59,
-    lon: 137.44,
-    desc: 'Zona de exploración del rover Curiosity (Monte Sharp)'
-  },
-  {
-    id: 'olympus',
-    nombre: 'Olympus Mons',
-    lat: 18.65,
-    lon: -133.80,
-    desc: 'El volcán y montaña más alta de todo el Sistema Solar (21 km)'
-  },
-  {
-    id: 'marineris',
-    nombre: 'Valles Marineris',
-    lat: -13.90,
-    lon: -59.20,
-    desc: 'Cañón gigantesco marciano de más de 4000 km de longitud'
-  },
-  {
-    id: 'tharsis',
-    nombre: 'Tharsis Montes',
-    lat: 1.50,
-    lon: -112.50,
-    desc: 'Gran meseta volcánica en el hemisferio occidental'
-  },
-  {
-    id: 'elysium',
-    nombre: 'Elysium Planitia',
-    lat: 4.50,
-    lon: 135.62,
-    desc: 'Llanura volcánica ecuatorial y sitio de aterrizaje de InSight'
-  },
-  {
-    id: 'utopia',
-    nombre: 'Utopia Planitia',
-    lat: 25.10,
-    lon: 109.90,
-    desc: 'Gran cuenca de impacto norteña (exploración Zhurong)'
-  },
-  {
-    id: 'gusev',
-    nombre: 'Cráter Gusev',
-    lat: -14.57,
-    lon: 175.47,
-    desc: 'Cráter con evidencia de actividad acuosa pasada (rover Spirit)'
-  },
-  {
-    id: 'deuteronilus',
-    nombre: 'Deuteronilus Mensae',
-    lat: 43.90,
-    lon: 23.40,
-    desc: 'Región de mesas y valles con extensos glaciares enterrados'
-  },
-  {
-    id: 'puesto-norte',
-    nombre: 'Puesto Avanzado Norte',
-    lat: 35.00,
-    lon: 45.00,
-    desc: 'Estación de monitoreo meteorológico de tormentas de polvo'
-  },
-  {
-    id: 'estacion-sur',
-    nombre: 'Estación de Investigación Sur',
-    lat: -45.00,
-    lon: -30.00,
-    desc: 'Observatorio criogénico y muestreo de hielo seco'
-  }
-];
+// Los 25 puntos oficiales de la red Dijkstra del Rover con datos ambientales reales
+export const LUGARES_MARTE = RoverRuta && RoverRuta.datos && RoverRuta.datos.puntos
+  ? RoverRuta.datos.puntos.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      lat: p.lat,
+      lon: p.lon,
+      pendiente_grados: p.pendiente_grados,
+      viento_ms: p.viento_ms,
+      opacidad_polvo: p.opacidad_polvo,
+      temp_min_c: p.temp_min_c,
+      temp_max_c: p.temp_max_c,
+      desc: p.tipoTerreno || 'Región geológica marciana'
+    }))
+  : [
+      { id: 1, nombre: "Vastitas Borealis", lat: 70, lon: 100, desc: "Llanura polar norte" },
+      { id: 4, nombre: "Acidalia Planitia", lat: 49, lon: -22, desc: "Cuenca sedimentaria norte" },
+      { id: 8, nombre: "Valles Marineris", lat: -14, lon: -59, desc: "Cañón gigantesco marciano" },
+      { id: 15, nombre: "Terra Meridiani", lat: -3, lon: 0, desc: "Planicie ecuatorial llana" },
+      { id: 19, nombre: "Hellas Planitia", lat: -42, lon: 70, desc: "Cuenca de impacto profunda" },
+      { id: 23, nombre: "Elysium Planitia", lat: 3, lon: 155, desc: "Llanura basáltica ecuatorial" }
+    ];
 
 // Opciones de equipo científico para misiones en Marte
 export const OPCIONES_EQUIPO_CIENTIFICO = [
   'Espectrómetro Láser LIBS (análisis químico de rocas)',
   'Radar de Penetración Subterránea RIMFAX (detección de hielo)',
   'Taladro de perforación y toma de muestras de suelo',
-  'Estación meteorológica y medición de radiación',
-  'Cámara multiespectral de alta resolución',
-  'Detector de biofirmas y compuestos orgánicos'
+  'Estación meteorológica y medición de radiación MEDA',
+  'Cámara multiespectral Mastcam-Z de alta resolución',
+  'Detector de biofirmas y compuestos orgánicos SHERLOC'
 ];
 
 // Opciones de objetivos de misiones de exploración a Marte
 export const OPCIONES_OBJETIVO_MISION = [
   'Muestreo y cartografía de hielo subterráneo',
-  'Búsqueda de biofirmas en cuencas lacustres',
-  'Reconocimiento geológico de tubos de lava',
-  'Instalación y calibración de sensores sísmicos',
+  'Búsqueda de biofirmas en cuencas lacustres y paleocanales',
+  'Reconocimiento geológico y acceso a tubos de lava',
+  'Instalación y calibración de sensores sísmicos de superficie',
   'Mantenimiento de antenas y repetidores de comunicaciones',
-  'Estudio de la atmósfera y tormentas de polvo'
+  'Monitoreo ambiental de vientos y tormentas de polvo global'
 ];
 
 // Cálculo de distancia en gran círculo sobre la esfera de Marte en kilómetros
@@ -170,7 +109,7 @@ export function formatearCoordenadas(lat, lon) {
   if (lat === undefined || lon === undefined) return '';
   const latDir = lat >= 0 ? 'N' : 'S';
   const lonDir = lon >= 0 ? 'E' : 'O';
-  return `${Math.abs(lat).toFixed(2)}° ${latDir}, ${Math.abs(lon).toFixed(2)}° ${lonDir}`;
+  return `${Math.abs(lat).toFixed(1)}° ${latDir}, ${Math.abs(lon).toFixed(1)}° ${lonDir}`;
 }
 
 // Cálculo del rumbo inicial (bearing/azimut) en grados (0 - 360)
