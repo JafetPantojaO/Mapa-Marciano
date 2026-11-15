@@ -12,7 +12,7 @@ Aplicación web para planificación de rutas, cartografía marciana y telemetrí
 
 ---
 
-## 📋 Requisitos Previos
+##  Requisitos Previos
 
 Asegúrate de contar con las siguientes herramientas instaladas:
 1. [Node.js](https://nodejs.org/) (versión 18 o superior recomendada).
@@ -29,7 +29,7 @@ docker compose version
 
 ---
 
-## ⚙️ Paso 1: Configurar Variables de Entorno
+##  Paso 1: Configurar Variables de Entorno
 
 Antes de iniciar el contenedor o los servidores, crea el archivo `.env` a partir de la plantilla `.env.example`:
 
@@ -94,7 +94,7 @@ Puedes iniciar sesión con cualquiera de los siguientes operadores creados en la
   ```
 
 * **Reiniciar desde cero (borrar datos y reejecutar migración inicial):**
-  > ⚠️ **Precaución:** Esto eliminará todos los registros de la base de datos.
+  >  **Precaución:** Esto eliminará todos los registros de la base de datos.
   ```bash
   docker compose down -v
   docker compose up -d
@@ -102,7 +102,7 @@ Puedes iniciar sesión con cualquiera de los siguientes operadores creados en la
 
 ---
 
-## ⚠️ Resolución de Conflictos de Puertos (MySQL Local)
+##  Resolución de Conflictos de Puertos (MySQL Local)
 
 Si ya tienes una instancia de MySQL o MariaDB instalada directamente en tu sistema operativo (o mediante XAMPP/WAMP), el puerto `3306` estará ocupado y Docker fallará con el error `Bind for 0.0.0.0:3306 failed: port is already allocated`.
 
@@ -130,7 +130,7 @@ Docker mapeará el puerto `3307` de tu host al `3306` interno del contenedor, y 
 
 ---
 
-## 📦 Paso 3: Instalación de Dependencias
+##  Paso 3: Instalación de Dependencias
 
 Con la base de datos levantada, instala los paquetes de Node.js:
 
@@ -174,7 +174,7 @@ npm run dev:all
 
 ---
 
-## 🛠️ Compilar para Producción (Build)
+##  Compilar para Producción (Build)
 
 Para generar el bundle optimizado de React:
 ```bash
