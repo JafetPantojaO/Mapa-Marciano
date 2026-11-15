@@ -810,49 +810,6 @@ function App() {
               </button>
             </form>
 
-            {/* Credenciales de prueba oficiales conectadas a la tabla Cuenta y Astronauta */}
-            <div className="login-test-accounts-box">
-              <span className="test-accounts-title">CREDENCIALES DE PRUEBA OFICIALES (MySQL):</span>
-              <div className="test-accounts-chips">
-                <button
-                  type="button"
-                  className="test-account-chip"
-                  onClick={() => {
-                    setAstronautId('ASTRO-01');
-                    setPassword('Ares2026Pass!');
-                  }}
-                  title="Click para autocompletar credenciales de Elena Ramos"
-                >
-                  <span><strong>ASTRO-01</strong> &bull; Elena Ramos</span>
-                  <code>Ares2026Pass!</code>
-                </button>
-                <button
-                  type="button"
-                  className="test-account-chip"
-                  onClick={() => {
-                    setAstronautId('ASTRO-02');
-                    setPassword('BotanistMars42!');
-                  }}
-                  title="Click para autocompletar credenciales de Mark Watney"
-                >
-                  <span><strong>ASTRO-02</strong> &bull; Mark Watney</span>
-                  <code>BotanistMars42!</code>
-                </button>
-                <button
-                  type="button"
-                  className="test-account-chip"
-                  onClick={() => {
-                    setAstronautId('ASTRO-03');
-                    setPassword('RoverPilot33!');
-                  }}
-                  title="Click para autocompletar credenciales de Carlos Herrera"
-                >
-                  <span><strong>ASTRO-03</strong> &bull; Carlos Herrera</span>
-                  <code>RoverPilot33!</code>
-                </button>
-              </div>
-            </div>
-
             <div className="login-footer-note">
               <span>Red de Comunicaciones del Espacio Profundo &bull; Enlace Seguro NASA</span>
             </div>

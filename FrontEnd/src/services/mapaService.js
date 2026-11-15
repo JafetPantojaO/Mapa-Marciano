@@ -17,8 +17,12 @@ export async function loginApi(identificador, password) {
     });
     return await res.json();
   } catch (error) {
-    console.warn('Servidor de autenticación no alcanzable, usando fallback local:', error.message);
-    return null;
+    console.warn('Servidor de autenticación no alcanzable:', error.message);
+    return {
+      ok: false,
+      connectionError: true,
+      error: `No se pudo conectar con el servidor Backend en ${SERVER_BASE}. Verifique que el backend esté corriendo en la terminal con 'npm run backend' o 'npm run dev:all'.`
+    };
   }
 }
 

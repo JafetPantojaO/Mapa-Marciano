@@ -62,11 +62,15 @@ router.post('/login', async (req, res) => {
       FROM Cuenta c
       INNER JOIN Astronauta a ON c.Astronauta_ID = a.Astronauta_ID
       LEFT JOIN StatusAstronauta sa ON a.Astronauta_ID = sa.Astronauta_ID
-      WHERE (c.Usuario = ? OR a.Identificador = ?) AND c.PasswordHash = ?
+      WHERE (
+        LOWER(c.Usuario) = LOWER(?)
+        OR LOWER(a.Identificador) = LOWER(?)
+        OR CAST(a.Astronauta_ID AS CHAR) = ?
+      ) AND c.PasswordHash = ?
       LIMIT 1
     `;
 
-    const [rows] = await pool.query(sql, [loginUser, loginUser, loginPass]);
+    const [rows] = await pool.query(sql, [loginUser, loginUser, loginUser, loginPass]);
 
     if (rows.length > 0) {
       const user = rows[0];
@@ -108,20 +112,21 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (dbError) {
-    console.warn('[Auth] Base de datos no disponible, evaluando credenciales de contingencia:', dbError.message);
+    console.warn('[Auth] Base de datos MySQL no disponible o error en consulta:', dbError.message);
 
-    // Modo de contingencia (fallback offline seguro)
+    // Modo de contingencia (fallback offline seguro si la BD aún no está disponible)
     const encontrado = ASTRONAUTAS_FALLBACK.find(
       (a) =>
         (a.Identificador.toLowerCase() === loginUser.toLowerCase() ||
-          a.Usuario.toLowerCase() === loginUser.toLowerCase()) &&
+          a.Usuario.toLowerCase() === loginUser.toLowerCase() ||
+          String(a.Astronauta_ID) === loginUser) &&
         a.PasswordHash === loginPass
     );
 
     if (encontrado) {
       return res.json({
         ok: true,
-        mensaje: 'Autenticación exitosa (Modo de contingencia)',
+        mensaje: 'Autenticación exitosa (Modo contingencia)',
         fuente: 'local_fallback',
         astronauta: {
           id: encontrado.Astronauta_ID,
@@ -139,9 +144,9 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    return res.status(401).json({
+    return res.status(500).json({
       ok: false,
-      error: 'Credenciales inválidas. Compruebe el identificador/usuario y la clave de acceso.'
+      error: `Error en base de datos MySQL (${dbError.code || 'DB_ERROR'}): ${dbError.message}. Verifique que el servicio/contenedor esté activo y las tablas creadas con 'database/init.sql'.`
     });
   }
 });
