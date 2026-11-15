@@ -27,6 +27,13 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+!.env.example
+
+# Docker & Database persistence / backups
+mysql_data/
+*.sql.bak
+*.dump
+
 
 # External skills / submodules
 antigravity-skills/
