@@ -1,6 +1,10 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import mapaRoutes from './routes/mapaRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import rutasBdRoutes from './routes/rutasBdRoutes.js';
+import { probarConexionBd } from './db.js';
 import {
   CAPAS_MARTE,
   PUNTOS_MARTE
@@ -26,6 +30,12 @@ app.get('/api/saludo', (req, res) => {
   });
 });
 
+// Rutas de autenticación (Cuenta / Astronauta / InicioSesion)
+app.use('/api/auth', authRoutes);
+
+// Rutas de persistencia de mapas (SolicitudRuta / Ruta)
+app.use('/api/rutas', rutasBdRoutes);
+
 // Rutas de mapa y navegacion
 app.use('/api/mapa', mapaRoutes);
 
@@ -38,6 +48,7 @@ app.get('/api/capas', (req, res) => {
   res.json({ capas: CAPAS_MARTE });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Servidor Node.js corriendo exitosamente en http://localhost:${PORT}`);
+  await probarConexionBd();
 });

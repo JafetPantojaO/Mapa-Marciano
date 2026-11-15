@@ -71,10 +71,36 @@ docker compose up -d
 3. **Persistencia:** Monta el volumen persistente `mapa_marciano_mysql_data`, garantizando que los datos no se borren cuando apagues o reinicies el contenedor.
 4. **Migración Inicial Automática:** La primera vez que el volumen se crea, Docker ejecuta automáticamente el script [`./database/init.sql`](database/init.sql), el cual:
    * Crea la base de datos `mapa_marciano`.
-   * Crea la tabla `astronautas`.
-   * Crea la tabla `rutas`.
-   * Crea la tabla intermedia muchos a muchos `astronauta_rutas`.
-   * Inserta datos iniciales de prueba (seed data).
+   * Crea el esquema completo de 11 tablas del centro de control marciano:
+     1. `Astronauta` (Astronauta_ID, Nombre, Identificador)
+     2. `Cuenta` (CUENTA_ID, Astronauta_ID, Usuario, PasswordHash)
+     3. `InicioSesion` (Login_ID, CUENTA_ID, FechaHora)
+     4. `DatosEspectrales` (BarraEspectral, Termico, Opticos, Radiacion)
+     5. `Mapa` (Mapa_ID, Coordenadas, Posicion, Brujula)
+     6. `HUD` (HUD_ID, BarraEspectral, Mapa_ID, TiempoAtmosferico)
+     7. `StatusAstronauta` (UniqueID, Astronauta_ID, TemperaturaCorporal, Oxigeno, Radiacion, Comunicacion)
+     8. `Rover` (Rover_ID, Energia, Tamaño, Peso)
+     9. `StatusRover` (Status_ID, Rover_ID, Capacidad, Sensores, Disponibilidad, Ruedas, Comunicacion, Brazo)
+     10. `SolicitudRuta` (SolicitudRuta_ID, Astronauta_ID, EquipoCientifico, Objetivo)
+     11. `Ruta` (RutaID, SolicitudRuta_ID, Origen, Destino, Coordenadas, DistanciaTotal, Duracion, Peligro)
+   * Inserta datos iniciales de prueba (seed data) para astronautas y cuentas de acceso, así como los 25 puntos geográficos calibrados de Marte en la tabla `Mapa`.
+
+### 👨‍🚀 Credenciales Oficiales de Prueba (Autenticación MySQL)
+
+Puedes iniciar sesión con cualquiera de los siguientes operadores creados en la base de datos:
+
+| Identificador | Usuario | Clave de Acceso | Nombre del Astronauta |
+|---|---|---|---|
+| `ASTRO-01` | `eramos` | `Ares2026Pass!` | Elena Ramos (Comandante de Misión) |
+| `ASTRO-02` | `mwatney` | `BotanistMars42!` | Mark Watney (Especialista Botánico / Geología) |
+| `ASTRO-03` | `cherrera` | `RoverPilot33!` | Carlos Herrera (Piloto Principal de Rover) |
+
+*(En la pantalla de login puedes ingresar tanto el Identificador como el Usuario, o hacer clic directamente en los accesos rápidos).*
+
+### 🗺️ Guardado Automático y Detección de Rutas Similares
+
+* Cada vez que se planifica una ruta en el mapa, los datos reales de cartografía marciana (coordenadas geodésicas, distancia ortodrómica, duración y nivel de riesgo) se persisten en las tablas `SolicitudRuta` y `Ruta`.
+* **Detección inteligente de similitud:** Si calculas una ruta idéntica o con variaciones insignificantes (< 10 km) respecto a la última registrada, el sistema desplegará un diálogo de confirmación para que decidas si deseas persistirla o descartarla.
 
 ### Comandos útiles de Docker:
 

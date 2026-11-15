@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import './App.css';
 import nasaLogo from './assets/NASA_logo.webp';
 import MarsMap from './components/MarsMap';
@@ -18,19 +18,31 @@ import {
 } from './constants/marsData';
 import {
   planificarRutasApi,
-  muestrearDatosEspectralesApi
+  muestrearDatosEspectralesApi,
+  loginApi,
+  guardarRutaBdApi
 } from './services/mapaService';
 
 function App() {
-  // Sesion de astronauta autenticado
+  // Sesion de astronauta autenticado con datos persistentes
   const [usuarioAutenticado, setUsuarioAutenticado] = useState(() => {
     try {
       const sesion = localStorage.getItem('astronauta_id');
-      return sesion ? { id: sesion } : null;
+      if (!sesion) return null;
+      try {
+        return JSON.parse(sesion);
+      } catch {
+        return { id: 1, identificador: sesion, nombre: sesion };
+      }
     } catch {
       return null;
     }
   });
+
+  // Referencias para control de rutas guardadas en Base de Datos MySQL
+  const ultimaRutaGuardadaRef = useRef(null);
+  const [modalConfirmacionRuta, setModalConfirmacionRuta] = useState(null);
+  const [notificacionBd, setNotificacionBd] = useState(null);
 
   // Formulario de login
   const [astronautId, setAstronautId] = useState('');
@@ -240,11 +252,72 @@ function App() {
       // Reiniciar avance del rover
       setProgresoRover(0);
       setEstaReproduciendo(false);
+
+      // Evaluar si guardar la ruta en base de datos o consultar al usuario si es similar
+      evaluarYGuardarRuta(res.rutas[0], pOrigen, pDestino, pEquiposSeleccionados);
     }
   };
 
-  // Manejador del Login
-  const handleLogin = (e) => {
+  // Guardar ruta en MySQL (SolicitudRuta + Ruta con coordenadas reales)
+  const guardarRutaEnBaseDatos = async (rutaObj, pOrigen, pDestino, pEquipos) => {
+    if (!rutaObj || !pOrigen || !pDestino) return;
+    try {
+      const payload = {
+        astronautaId: usuarioAutenticado?.id || 1,
+        equipoCientifico: (pEquipos && pEquipos.length > 0) ? pEquipos.join(', ') : 'Instrumentación general de navegación',
+        objetivo: objetivoMision?.titulo || 'Cartografía y muestreo de superficie marciana',
+        origen: pOrigen.nombre,
+        destino: pDestino.nombre,
+        coordenadas: rutaObj.paradas ? rutaObj.paradas.map((p) => ({ nombre: p.nombre, lat: p.lat, lon: p.lon })) : [],
+        distanciaTotal: rutaObj.distanciaKm || 0,
+        duracion: rutaObj.horasEstimadas || Math.round((rutaObj.distanciaKm || 0) / 0.14),
+        peligro: rutaObj.id === 'peor' ? 'alto' : rutaObj.id === 'optima' ? 'bajo' : 'medio'
+      };
+
+      const res = await guardarRutaBdApi(payload);
+      if (res && res.ok) {
+        ultimaRutaGuardadaRef.current = {
+          origen: payload.origen,
+          destino: payload.destino,
+          distanciaKm: payload.distanciaTotal,
+          rutaId: res.rutaId
+        };
+        setNotificacionBd(`🛰️ Ruta guardada en Base de Datos MySQL (RutaID #${res.rutaId})`);
+        setTimeout(() => setNotificacionBd(null), 5000);
+      }
+    } catch (err) {
+      console.warn('Error al guardar ruta en BD:', err);
+    }
+  };
+
+  // Evaluación de similitud de rutas antes de persistir
+  const evaluarYGuardarRuta = (rutaObj, pOrigen, pDestino, pEquipos) => {
+    if (!rutaObj || !pOrigen || !pDestino) return;
+    const ult = ultimaRutaGuardadaRef.current;
+
+    if (ult) {
+      const mismoOrigenDestino = ult.origen === pOrigen.nombre && ult.destino === pDestino.nombre;
+      const diferenciaDistancia = Math.abs((rutaObj.distanciaKm || 0) - (ult.distanciaKm || 0));
+
+      // Si la ruta conecta los mismos puntos y la variación es insignificante (< 10 km)
+      if (mismoOrigenDestino && diferenciaDistancia < 10) {
+        setModalConfirmacionRuta({
+          ruta: rutaObj,
+          origen: pOrigen,
+          destino: pDestino,
+          equipos: pEquipos,
+          mensaje: `La ruta calculada entre ${pOrigen.nombre} y ${pDestino.nombre} (${rutaObj.distanciaKm} km) es prácticamente idéntica a la anterior registrada en la base de datos (variación insignificante de ${diferenciaDistancia.toFixed(1)} km). ¿Deseas guardarla de todas formas en la base de datos marciana?`
+        });
+        return;
+      }
+    }
+
+    // Si es nueva ruta o con cambios significativos, se persiste directamente
+    guardarRutaEnBaseDatos(rutaObj, pOrigen, pDestino, pEquipos);
+  };
+
+  // Manejador del Login autenticando contra la base de datos (Cuenta + Astronauta)
+  const handleLogin = async (e) => {
     e.preventDefault();
     setErrorLogin('');
 
@@ -252,7 +325,7 @@ function App() {
     const passLimpio = password.trim();
 
     if (!idLimpio) {
-      setErrorLogin('Ingrese su identificador oficial de astronauta.');
+      setErrorLogin('Ingrese su identificador oficial o usuario de astronauta.');
       return;
     }
     if (!passLimpio) {
@@ -260,12 +333,16 @@ function App() {
       return;
     }
 
-    const sesion = { id: idLimpio };
-    setUsuarioAutenticado(sesion);
-    try {
-      localStorage.setItem('astronauta_id', idLimpio);
-    } catch {
-      // ignore
+    const res = await loginApi(idLimpio, passLimpio);
+    if (res && res.ok && res.astronauta) {
+      setUsuarioAutenticado(res.astronauta);
+      try {
+        localStorage.setItem('astronauta_id', JSON.stringify(res.astronauta));
+      } catch {
+        // ignore
+      }
+    } else {
+      setErrorLogin(res?.error || 'Credenciales inválidas. Compruebe su identificador/usuario y clave de seguridad.');
     }
   };
 
@@ -424,6 +501,7 @@ function App() {
     // Seleccionar por defecto la ruta recomendada (optima)
     if (res.rutas && res.rutas.length > 0) {
       setRutaActivaId(res.rutas[0].id);
+      evaluarYGuardarRuta(res.rutas[0], origen, destino, equiposSeleccionados);
     }
     if (res.mapaSugerido && res.mapaSugerido !== capaActivaId) {
       setCapaActivaId(res.mapaSugerido);
@@ -565,29 +643,32 @@ function App() {
     return () => clearInterval(intervalo);
   }, [estaReproduciendo, velocidadAvance]);
 
-  // Recálculo espectral en cada avance del rover
+  // Recálculo espectral en tiempo real durante el avance del rover
   useEffect(() => {
     if (!posicionRover) return;
+
+    // 1. Telemetría síncrona en tiempo real: actualiza las barras en cada movimiento del rover
+    const local = muestrearEspectralLocal(posicionRover);
+    setDatosEspectrales(local);
+
+    // 2. Muestreo API del servidor desacoplado para sincronizar datos satelitales
     let cancelado = false;
     const timer = setTimeout(async () => {
-      setCargandoEspectral(true);
-      const res = await muestrearDatosEspectralesApi(
-        posicionRover.lat,
-        posicionRover.lon,
-        posicionRover.tramoIndex,
-        posicionRover.totalTramos,
-        posicionRover.waypointCercano
-      );
-      if (!cancelado) {
-        if (res && res.status === 'success') {
+      try {
+        const res = await muestrearDatosEspectralesApi(
+          posicionRover.lat,
+          posicionRover.lon,
+          posicionRover.tramoIndex,
+          posicionRover.totalTramos,
+          posicionRover.waypointCercano
+        );
+        if (!cancelado && res && res.status === 'success') {
           setDatosEspectrales(res);
-        } else {
-          const fallback = muestrearEspectralLocal(posicionRover);
-          setDatosEspectrales(fallback);
         }
-        setCargandoEspectral(false);
+      } catch {
+        // En caso de latencia o corte, la telemetría local permanece fluida y continua
       }
-    }, 70);
+    }, 400);
 
     return () => {
       cancelado = true;
@@ -729,6 +810,49 @@ function App() {
               </button>
             </form>
 
+            {/* Credenciales de prueba oficiales conectadas a la tabla Cuenta y Astronauta */}
+            <div className="login-test-accounts-box">
+              <span className="test-accounts-title">CREDENCIALES DE PRUEBA OFICIALES (MySQL):</span>
+              <div className="test-accounts-chips">
+                <button
+                  type="button"
+                  className="test-account-chip"
+                  onClick={() => {
+                    setAstronautId('ASTRO-01');
+                    setPassword('Ares2026Pass!');
+                  }}
+                  title="Click para autocompletar credenciales de Elena Ramos"
+                >
+                  <span><strong>ASTRO-01</strong> &bull; Elena Ramos</span>
+                  <code>Ares2026Pass!</code>
+                </button>
+                <button
+                  type="button"
+                  className="test-account-chip"
+                  onClick={() => {
+                    setAstronautId('ASTRO-02');
+                    setPassword('BotanistMars42!');
+                  }}
+                  title="Click para autocompletar credenciales de Mark Watney"
+                >
+                  <span><strong>ASTRO-02</strong> &bull; Mark Watney</span>
+                  <code>BotanistMars42!</code>
+                </button>
+                <button
+                  type="button"
+                  className="test-account-chip"
+                  onClick={() => {
+                    setAstronautId('ASTRO-03');
+                    setPassword('RoverPilot33!');
+                  }}
+                  title="Click para autocompletar credenciales de Carlos Herrera"
+                >
+                  <span><strong>ASTRO-03</strong> &bull; Carlos Herrera</span>
+                  <code>RoverPilot33!</code>
+                </button>
+              </div>
+            </div>
+
             <div className="login-footer-note">
               <span>Red de Comunicaciones del Espacio Profundo &bull; Enlace Seguro NASA</span>
             </div>
@@ -770,7 +894,7 @@ function App() {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
                 <span className="chip-label">
-                  Astronauta: <strong>{usuarioAutenticado.id}</strong>
+                  Astronauta: <strong>{usuarioAutenticado.nombre || usuarioAutenticado.identificador || usuarioAutenticado.id}</strong> {usuarioAutenticado.identificador ? `(${usuarioAutenticado.identificador})` : ''}
                 </span>
               </div>
 
@@ -1414,6 +1538,49 @@ function App() {
             </div>
           )}
         </main>
+      )}
+
+      {/* Modal de confirmación si la ruta calculada es muy similar a la anterior */}
+      {modalConfirmacionRuta && (
+        <div className="mars-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <div className="mars-modal-dialog">
+            <div className="mars-modal-header">
+              <span className="mars-modal-tag">CONTROL DE RUTAS &bull; BASE DE DATOS MARTE</span>
+              <h3 id="modal-title" className="mars-modal-title">Ruta Similar Detectada</h3>
+            </div>
+            <p className="mars-modal-body">
+              {modalConfirmacionRuta.mensaje}
+            </p>
+            <div className="mars-modal-actions">
+              <button
+                type="button"
+                className="btn-pro-outline"
+                onClick={() => setModalConfirmacionRuta(null)}
+              >
+                Omitir Guardado
+              </button>
+              <button
+                type="button"
+                className="btn-pro-primary"
+                onClick={() => {
+                  const m = modalConfirmacionRuta;
+                  setModalConfirmacionRuta(null);
+                  guardarRutaEnBaseDatos(m.ruta, m.origen, m.destino, m.equipos);
+                }}
+              >
+                Guardar en Base de Datos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast de confirmación de guardado en MySQL */}
+      {notificacionBd && (
+        <div className="db-save-toast" role="status">
+          <span className="db-toast-icon">✓</span>
+          <span>{notificacionBd}</span>
+        </div>
       )}
     </div>
   );

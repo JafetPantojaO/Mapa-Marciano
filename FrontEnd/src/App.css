@@ -330,8 +330,7 @@ button,
   height: 7px;
   border-radius: 50%;
   background: var(--color-success);
-  box-shadow: 0 0 8px var(--color-success);
-  animation: pingDot 2s infinite;
+  box-shadow: none;
 }
 
 .astronaut-chip {
@@ -861,12 +860,12 @@ button,
 
 .dot-origen {
   background: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  box-shadow: none;
 }
 
 .dot-destino {
   background: #ef4444;
-  box-shadow: 0 0 8px #ef4444;
+  box-shadow: none;
 }
 
 /* Banner interactivo de modo selección */
@@ -877,7 +876,7 @@ button,
   transform: translateX(-50%);
   background: rgba(15, 23, 42, 0.96);
   border: 1px solid #38bdf8;
-  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
   padding: 8px 16px;
   border-radius: 0 !important; /* Rectangular */
   display: flex;
@@ -894,8 +893,7 @@ button,
   height: 9px;
   background: #38bdf8;
   border-radius: 0 !important; /* Rectangular */
-  box-shadow: 0 0 8px #38bdf8;
-  animation: pulseDot 1.2s infinite alternate;
+  box-shadow: none;
 }
 
 .prompt-cancel-btn {
@@ -1073,7 +1071,7 @@ button,
 
 .point-selector-box.highlight-mode {
   border-color: #38bdf8;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+  box-shadow: none;
 }
 
 .point-box-top {
@@ -1485,17 +1483,17 @@ button,
 
 .route-card-item.is-selected {
   border-color: #10b981;
-  box-shadow: 0 0 24px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .route-card-item.card-is-best {
   border: 2px solid #10b981 !important;
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .route-card-item.card-is-worst {
   border: 2px solid #ef4444 !important;
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .card-eval-banner {
@@ -2197,8 +2195,7 @@ button,
   height: 6px;
   background: #10b981;
   border-radius: 50%;
-  box-shadow: 0 0 8px #10b981;
-  animation: pulseDot 1.4s infinite ease-in-out;
+  box-shadow: none;
 }
 
 .minimap-title {
@@ -2231,7 +2228,7 @@ button,
 
 .line-sample.line-solid {
   background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  box-shadow: none;
 }
 
 .line-sample.line-dashed {
@@ -2362,7 +2359,7 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 10px #10b981;
+  box-shadow: none;
 }
 
 /* Marcador del rover en el mapa principal */
@@ -2378,9 +2375,8 @@ button,
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: rgba(56, 189, 248, 0.35);
-  border: 2px solid #38bdf8;
-  animation: pingDot 1.8s infinite ease-out;
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid #38bdf8;
 }
 
 .main-rover-icon {
@@ -2393,7 +2389,7 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 12px #38bdf8;
+  box-shadow: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -2480,7 +2476,7 @@ button,
   background: #38bdf8;
   border: 2px solid #ffffff;
   cursor: grab;
-  box-shadow: 0 0 10px #38bdf8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
   transition: transform 120ms;
 }
 
@@ -2500,7 +2496,7 @@ button,
   background: #38bdf8;
   border: 2px solid #ffffff;
   cursor: grab;
-  box-shadow: 0 0 10px #38bdf8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .timeline-actions-row {
@@ -2707,17 +2703,17 @@ button,
 
 .variable-dot[data-var='optico'] {
   background: #06b6d4;
-  box-shadow: 0 0 6px #06b6d4;
+  box-shadow: none;
 }
 
 .variable-dot[data-var='termico'] {
   background: #f97316;
-  box-shadow: 0 0 6px #f97316;
+  box-shadow: none;
 }
 
 .variable-dot[data-var='polvo'] {
   background: #eab308;
-  box-shadow: 0 0 6px #eab308;
+  box-shadow: none;
 }
 
 .variable-label {
@@ -2780,18 +2776,18 @@ button,
 }
 
 .spectral-bar-fill.fill-optico {
-  background: linear-gradient(90deg, #0284c7, #06b6d4);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+  background: #0284c7;
+  box-shadow: none;
 }
 
 .spectral-bar-fill.fill-termico {
-  background: linear-gradient(90deg, #ea580c, #f97316);
-  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
+  background: #ea580c;
+  box-shadow: none;
 }
 
 .spectral-bar-fill.fill-polvo {
-  background: linear-gradient(90deg, #d97706, #eab308);
-  box-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
+  background: #d97706;
+  box-shadow: none;
 }
 
 .spectral-bar-fill.fill-empty {
@@ -2930,4 +2926,179 @@ button,
   flex-shrink: 0;
   margin-top: 2px;
   color: #94a3b8;
+}
+
+/* ==========================================================================
+   MODAL DE CONFIRMACIÓN DE RUTA EN BD & TOAST NOTIFICACIONES
+   ========================================================================== */
+
+.mars-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.mars-modal-dialog {
+  background: #0d1527;
+  border: 1px solid #334155;
+  border-radius: 0 !important;
+  max-width: 520px;
+  width: 100%;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mars-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 12px;
+}
+
+.mars-modal-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.mars-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.mars-modal-body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+.mars-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn-pro-outline {
+  background: transparent;
+  border: 1px solid #475569;
+  color: #cbd5e1;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 150ms ease;
+}
+
+.btn-pro-outline:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #94a3b8;
+  color: #ffffff;
+}
+
+.btn-pro-primary {
+  background: #2563eb;
+  border: 1px solid #3b82f6;
+  color: #ffffff;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 150ms ease;
+}
+
+.btn-pro-primary:hover {
+  background: #1d4ed8;
+}
+
+.db-save-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #0f172a;
+  border: 1px solid #10b981;
+  color: #f8fafc;
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+.db-toast-icon {
+  color: #34d399;
+  font-weight: bold;
+}
+
+/* Selector de cuentas de prueba en el Login */
+.login-test-accounts-box {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-accounts-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.test-accounts-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.test-account-chip {
+  background: #070b14;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 140ms ease;
+}
+
+.test-account-chip:hover {
+  background: #111827;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.test-account-chip code {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
