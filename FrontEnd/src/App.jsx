@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import nasaLogo from './assets/NASA_logo.webp';
 import MarsMap from './components/MarsMap';
@@ -13,6 +13,11 @@ import {
   calcularRumbo,
   formatearCoordenadas
 } from './constants/marsData';
+import {
+  planificarRutasApi,
+  fetchCapas,
+  fetchLugares
+} from './services/mapaService';
 
 function App() {
   // Sesion de astronauta autenticado
@@ -158,8 +163,8 @@ function App() {
     return mejorId;
   };
 
-  // Calcular las rutas alternativas considerando todos los factores
-  const handleCalcularRutas = (e) => {
+  // Calcular las rutas alternativas considerando todos los factores en el BackEnd
+  const handleCalcularRutas = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setErrorRuta('');
 
@@ -181,7 +186,8 @@ function App() {
       return;
     }
 
-    const res = RoverRuta.generarListaRutas(
+    // Delegacion del calculo de ruta Dijkstra al servidor BackEnd
+    let res = await planificarRutasApi(
       idO,
       idD,
       perfilCarga,
@@ -189,8 +195,23 @@ function App() {
       equiposSeleccionados
     );
 
-    if (!res.ok) {
-      setErrorRuta(res.mensaje || 'No se pudo generar una ruta segura con los parámetros especificados.');
+    // Fallback de contingencia local si el servidor BackEnd esta temporalmente inaccesible
+    if (!res || !res.ok) {
+      try {
+        res = RoverRuta.generarListaRutas(
+          idO,
+          idD,
+          perfilCarga,
+          llevaEquipo === 'si',
+          equiposSeleccionados
+        );
+      } catch (err) {
+        console.error('Error en calculo de ruta:', err);
+      }
+    }
+
+    if (!res || !res.ok) {
+      setErrorRuta(res?.mensaje || 'No se pudo generar una ruta segura con los parámetros especificados.');
       return;
     }
 
