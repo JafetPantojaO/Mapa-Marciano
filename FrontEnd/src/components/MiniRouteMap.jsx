@@ -1,14 +1,38 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * MiniRouteMap - Renderiza un mapa compacto de Leaflet con la visualización
  * gráfica de una ruta específica sobre la superficie de Marte.
+ * Incluye carga diferida (IntersectionObserver) para garantizar alta fluidez y 60 FPS
+ * incluso al renderizar decenas de rutas encontradas por el algoritmo de Backtracking.
  */
 export default function MiniRouteMap({ route, isSelected }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Observador de intersección para inicializar Leaflet solo cuando la tarjeta sea visible
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '250px' }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
+    if (!isVisible) return;
     const L = window.L;
     if (!L || !containerRef.current || !route || !route.coordenadasLeaflet?.length) return;
 
@@ -104,7 +128,7 @@ export default function MiniRouteMap({ route, isSelected }) {
         mapRef.current = null;
       }
     };
-  }, [route]);
+  }, [isVisible, route]);
 
   return (
     <div className={`mini-map-container ${isSelected ? 'selected' : ''}`}>

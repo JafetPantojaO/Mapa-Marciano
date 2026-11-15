@@ -41,7 +41,6 @@ function App() {
 
   // Referencias para control de rutas guardadas en Base de Datos MySQL
   const ultimaRutaGuardadaRef = useRef(null);
-  const [modalConfirmacionRuta, setModalConfirmacionRuta] = useState(null);
   const [notificacionBd, setNotificacionBd] = useState(null);
 
   // Formulario de login
@@ -50,8 +49,27 @@ function App() {
   const [errorLogin, setErrorLogin] = useState('');
 
   // Apartado de Origen y Destino: seleccion de ubicacion de partida y llegada
-  const [origen, setOrigen] = useState(LUGARES_MARTE[14]); // Terra Meridiani (id: 15)
-  const [destino, setDestino] = useState(LUGARES_MARTE[22]); // Elysium Planitia (id: 23)
+  const [origen, setOrigen] = useState(() => {
+    try {
+      const gId = sessionStorage.getItem('origen_id');
+      if (gId) {
+        const p = LUGARES_MARTE.find((item) => item.id === Number(gId));
+        if (p) return p;
+      }
+    } catch {}
+    return LUGARES_MARTE[14]; // Terra Meridiani (id: 15)
+  });
+
+  const [destino, setDestino] = useState(() => {
+    try {
+      const gId = sessionStorage.getItem('destino_id');
+      if (gId) {
+        const p = LUGARES_MARTE.find((item) => item.id === Number(gId));
+        if (p) return p;
+      }
+    } catch {}
+    return LUGARES_MARTE[22]; // Elysium Planitia (id: 23)
+  });
   const [modoSeleccionMapa, setModoSeleccionMapa] = useState(null); // 'origen' | 'destino' | null
 
   // Capa activa de mosaicos de Marte
@@ -67,12 +85,25 @@ function App() {
   const [objetivoMision, setObjetivoMision] = useState(OPCIONES_OBJETIVO_MISION[0]);
   const [errorRuta, setErrorRuta] = useState('');
 
-  // Lista de rutas calculadas por Dijkstra multicriterio y ruta activa seleccionada
+  // Control de visualización: mostrar 6 rutas por defecto o todas las disponibles
+  const [mostrarTodasLasRutas, setMostrarTodasLasRutas] = useState(() => {
+    try {
+      return sessionStorage.getItem('ver_todas_rutas') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [pestanaActiva, setPestanaActiva] = useState('rutas'); // 'rutas' | 'pregunta'
+  const [pestanaPreguntaVisible, setPestanaPreguntaVisible] = useState(true);
+
+  // Lista de rutas calculadas y ruta activa seleccionada
   const [resultadoRutas, setResultadoRutas] = useState(() => {
     try {
+      const idO = sessionStorage.getItem('origen_id') ? Number(sessionStorage.getItem('origen_id')) : 15;
+      const idD = sessionStorage.getItem('destino_id') ? Number(sessionStorage.getItem('destino_id')) : 23;
       return RoverRuta.generarListaRutas(
-        15,
-        23,
+        idO,
+        idD,
         'delicada',
         true,
         [OPCIONES_EQUIPO_CIENTIFICO[0], OPCIONES_EQUIPO_CIENTIFICO[1]]
@@ -82,7 +113,78 @@ function App() {
     }
   });
   const [rutaActivaId, setRutaActivaId] = useState('optima');
-  const [mostrarOverlayRutas, setMostrarOverlayRutas] = useState(false);
+  const [mostrarOverlayRutas, setMostrarOverlayRutas] = useState(() => {
+    try {
+      return sessionStorage.getItem('abrir_overlay') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Limpiar flag temporal de apertura automática al recargar
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('abrir_overlay') === 'true') {
+        sessionStorage.removeItem('abrir_overlay');
+      }
+    } catch {}
+  }, []);
+
+  // Selecciona exactamente 6 rutas representativas distribuidas de la más factible a la más ineficiente
+  const seleccionar6RutasDiferentes = (rutas) => {
+    if (!rutas || rutas.length <= 6) return rutas || [];
+    const N = rutas.length;
+    const indicesDeseados = [
+      0,
+      Math.round((N - 1) * 0.2),
+      Math.round((N - 1) * 0.4),
+      Math.round((N - 1) * 0.6),
+      Math.round((N - 1) * 0.8),
+      N - 1
+    ];
+    const indicesUnicos = Array.from(new Set(indicesDeseados)).sort((a, b) => a - b);
+    while (indicesUnicos.length < 6 && indicesUnicos.length < N) {
+      for (let i = 0; i < N; i++) {
+        if (!indicesUnicos.includes(i)) {
+          indicesUnicos.push(i);
+          indicesUnicos.sort((a, b) => a - b);
+          break;
+        }
+      }
+    }
+    return indicesUnicos.map((idx) => rutas[idx]);
+  };
+
+  // Rutas a renderizar según el modo seleccionado (6 rutas por defecto o todas si confirmó)
+  const rutasVisibles = useMemo(() => {
+    const listaCompleta = resultadoRutas?.rutas || [];
+    if (mostrarTodasLasRutas) {
+      return listaCompleta;
+    }
+    return seleccionar6RutasDiferentes(listaCompleta);
+  }, [resultadoRutas, mostrarTodasLasRutas]);
+
+  // Si dice que sí: refrescar automáticamente la página y mostrar todas las rutas
+  const handleConfirmarVerTodas = () => {
+    try {
+      sessionStorage.setItem('ver_todas_rutas', 'true');
+      sessionStorage.setItem('origen_id', String(origen.id));
+      sessionStorage.setItem('destino_id', String(destino.id));
+      sessionStorage.setItem('abrir_overlay', 'true');
+    } catch (err) {
+      console.warn(err);
+    }
+    window.location.reload();
+  };
+
+  // Si dice que no: cerrar la pestaña de la pregunta y volver a la pestaña original
+  const handleCerrarPregunta = () => {
+    try {
+      sessionStorage.removeItem('ver_todas_rutas');
+    } catch {}
+    setPestanaPreguntaVisible(false);
+    setPestanaActiva('rutas');
+  };
 
   // FUNCIÓN 1: Estado del avance del rover, minimapa y control de trayectoria
   const [progresoRover, setProgresoRover] = useState(0); // 0 a 100 %
@@ -253,8 +355,8 @@ function App() {
       setProgresoRover(0);
       setEstaReproduciendo(false);
 
-      // Evaluar si guardar la ruta en base de datos o consultar al usuario si es similar
-      evaluarYGuardarRuta(res.rutas[0], pOrigen, pDestino, pEquiposSeleccionados);
+      // Guardar la ruta directamente en base de datos sin pedir confirmación
+      guardarRutaEnBaseDatos(res.rutas[0], pOrigen, pDestino, pEquiposSeleccionados);
     }
   };
 
@@ -271,7 +373,7 @@ function App() {
         coordenadas: rutaObj.paradas ? rutaObj.paradas.map((p) => ({ nombre: p.nombre, lat: p.lat, lon: p.lon })) : [],
         distanciaTotal: rutaObj.distanciaKm || 0,
         duracion: rutaObj.horasEstimadas || Math.round((rutaObj.distanciaKm || 0) / 0.14),
-        peligro: rutaObj.id === 'peor' ? 'alto' : rutaObj.id === 'optima' ? 'bajo' : 'medio'
+        peligro: rutaObj.id === 'peor' || rutaObj.tipoEvaluacion === 'peor' ? 'alto' : (rutaObj.id === 'optima' || rutaObj.tipoEvaluacion === 'mejor' ? 'bajo' : 'medio')
       };
 
       const res = await guardarRutaBdApi(payload);
@@ -282,7 +384,7 @@ function App() {
           distanciaKm: payload.distanciaTotal,
           rutaId: res.rutaId
         };
-        setNotificacionBd(`🛰️ Ruta guardada en Base de Datos MySQL (RutaID #${res.rutaId})`);
+        setNotificacionBd(`Ruta guardada en Base de Datos MySQL (RutaID #${res.rutaId})`);
         setTimeout(() => setNotificacionBd(null), 5000);
       }
     } catch (err) {
@@ -290,29 +392,9 @@ function App() {
     }
   };
 
-  // Evaluación de similitud de rutas antes de persistir
+  // Persistencia de ruta directa sin confirmación
   const evaluarYGuardarRuta = (rutaObj, pOrigen, pDestino, pEquipos) => {
     if (!rutaObj || !pOrigen || !pDestino) return;
-    const ult = ultimaRutaGuardadaRef.current;
-
-    if (ult) {
-      const mismoOrigenDestino = ult.origen === pOrigen.nombre && ult.destino === pDestino.nombre;
-      const diferenciaDistancia = Math.abs((rutaObj.distanciaKm || 0) - (ult.distanciaKm || 0));
-
-      // Si la ruta conecta los mismos puntos y la variación es insignificante (< 10 km)
-      if (mismoOrigenDestino && diferenciaDistancia < 10) {
-        setModalConfirmacionRuta({
-          ruta: rutaObj,
-          origen: pOrigen,
-          destino: pDestino,
-          equipos: pEquipos,
-          mensaje: `La ruta calculada entre ${pOrigen.nombre} y ${pDestino.nombre} (${rutaObj.distanciaKm} km) es prácticamente idéntica a la anterior registrada en la base de datos (variación insignificante de ${diferenciaDistancia.toFixed(1)} km). ¿Deseas guardarla de todas formas en la base de datos marciana?`
-        });
-        return;
-      }
-    }
-
-    // Si es nueva ruta o con cambios significativos, se persiste directamente
     guardarRutaEnBaseDatos(rutaObj, pOrigen, pDestino, pEquipos);
   };
 
@@ -468,7 +550,7 @@ function App() {
       return;
     }
 
-    // Delegacion del calculo de ruta Dijkstra al servidor BackEnd
+    // Delegacion del calculo de rutas al servidor BackEnd
     let res = await planificarRutasApi(
       idO,
       idD,
@@ -498,6 +580,8 @@ function App() {
     }
 
     setResultadoRutas(res);
+    setPestanaPreguntaVisible(true);
+    setPestanaActiva('rutas');
     // Seleccionar por defecto la ruta recomendada (optima)
     if (res.rutas && res.rutas.length > 0) {
       setRutaActivaId(res.rutas[0].id);
@@ -1283,16 +1367,15 @@ function App() {
                 <div className="overlay-routes-header">
                   <div className="overlay-title-group">
                     <div className="overlay-badge-row">
-                      <span className="badge-overlay-tag">EVALUACIÓN COMPARATIVA MULTICRITERIO</span>
-                      <span className="badge-best-indicator">1 Mejor Ruta (Recomendada)</span>
-                      <span className="badge-worst-indicator">1 Peor Ruta (Alto Riesgo)</span>
+                      <span className="badge-overlay-tag">CARTOGRAFÍA MARCIANA</span>
+                      <span className="badge-best-indicator">1 Más Factible y Rápida (Óptima)</span>
+                      <span className="badge-worst-indicator">1 Más Ineficiente y Lenta (Alto Riesgo)</span>
                     </div>
                     <h3 className="overlay-main-title">
-                      Lista de Rutas Disponibles
+                      {mostrarTodasLasRutas
+                        ? 'Todas las Rutas Disponibles'
+                        : `Rutas Disponibles (${rutasVisibles.length} Principales)`}
                     </h3>
-                    <p className="overlay-subtitle">
-                      Se han generado <strong>{resultadoRutas.rutas.length} rutas diferentes</strong>. Cada una cuenta con trayectorias y paradas únicas. Compare la mejor ruta frente a la peor opción con sus respectivos pros y contras.
-                    </p>
                   </div>
                   <button
                     type="button"
@@ -1308,9 +1391,139 @@ function App() {
                   </button>
                 </div>
 
+                {/* BARRA DE PESTAÑAS */}
+                <div className="overlay-tabs-bar">
+                  <button
+                    type="button"
+                    className={`overlay-tab-nav-btn ${pestanaActiva === 'rutas' ? 'is-active' : ''}`}
+                    onClick={() => setPestanaActiva('rutas')}
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    <span>
+                      {mostrarTodasLasRutas
+                        ? `Todas las Rutas Disponibles (${rutasVisibles.length})`
+                        : `Rutas Principales (${rutasVisibles.length} Rutas)`}
+                    </span>
+                  </button>
+
+                  {pestanaPreguntaVisible && !mostrarTodasLasRutas && (
+                    <button
+                      type="button"
+                      className={`overlay-tab-nav-btn tab-question-nav-btn ${pestanaActiva === 'pregunta' ? 'is-active' : ''}`}
+                      onClick={() => setPestanaActiva('pregunta')}
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      <span>¿Desea ver todas las rutas disponibles?</span>
+                    </button>
+                  )}
+
+                  {mostrarTodasLasRutas && (
+                    <button
+                      type="button"
+                      className="overlay-tab-nav-btn tab-volver-6-btn"
+                      onClick={() => {
+                        try {
+                          sessionStorage.removeItem('ver_todas_rutas');
+                        } catch {}
+                        setMostrarTodasLasRutas(false);
+                        setPestanaActiva('rutas');
+                        setPestanaPreguntaVisible(true);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                      <span>Mostrar solo 6 rutas</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="overlay-routes-body">
-                  <div className="routes-cards-grid">
-                    {resultadoRutas.rutas.map((r) => {
+                  {pestanaActiva === 'pregunta' ? (
+                    <div className="tab-question-panel">
+                      <div className="question-card-box">
+                        <div className="question-icon-ring">
+                          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                          </svg>
+                        </div>
+                        <h3 className="question-card-title">¿Desea ver todas las rutas disponibles?</h3>
+                        <p className="question-card-desc">
+                          Actualmente se muestran <strong>6 rutas diferentes</strong>. Si selecciona <strong>Sí</strong>, la página se refrescará automáticamente y aparecerán todas las rutas posibles calculadas por el algoritmo.
+                        </p>
+                        <div className="question-card-actions">
+                          <button
+                            type="button"
+                            className="btn-pro-primary btn-confirm-yes"
+                            onClick={handleConfirmarVerTodas}
+                          >
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            <span>Sí</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-pro-outline btn-confirm-no"
+                            onClick={handleCerrarPregunta}
+                          >
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                            <span>No</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Banner interactivo de la pregunta sobre las 6 tarjetas */}
+                      {pestanaPreguntaVisible && !mostrarTodasLasRutas && (
+                        <div className="routes-inquiry-banner">
+                          <div className="inquiry-text-block">
+                            <span className="inquiry-icon-pill">?</span>
+                            <div className="inquiry-titles">
+                              <strong className="inquiry-title">¿Desea ver todas las rutas disponibles?</strong>
+                              <span className="inquiry-subtitle">
+                                Se muestran 6 rutas representativas. Al confirmar "Sí" se refresca la página automáticamente para desplegar todas las rutas posibles ({resultadoRutas?.rutas?.length || 0} rutas).
+                              </span>
+                            </div>
+                          </div>
+                          <div className="inquiry-actions">
+                            <button
+                              type="button"
+                              className="btn-inquiry-yes"
+                              onClick={handleConfirmarVerTodas}
+                              title="Refrescar página y cargar todas las rutas"
+                            >
+                              Sí
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-inquiry-no"
+                              onClick={handleCerrarPregunta}
+                              title="Cerrar la pregunta y mantener 6 rutas"
+                            >
+                              No
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="routes-cards-grid">
+                        {rutasVisibles.map((r) => {
                       const esSeleccionada = rutaActivaId === r.id;
                       const esMejor = r.tipoEvaluacion === 'mejor';
                       const esPeor = r.tipoEvaluacion === 'peor';
@@ -1325,12 +1538,17 @@ function App() {
                           {/* Banner superior de clasificación */}
                           {esMejor && (
                             <div className="card-eval-banner eval-best-banner">
-                              <span>MEJOR RUTA RECOMENDADA (MÁXIMA SEGURIDAD)</span>
+                              <span>MÁS FACTIBLE Y RÁPIDA (RECOMENDADA)</span>
                             </div>
                           )}
                           {esPeor && (
                             <div className="card-eval-banner eval-worst-banner">
-                              <span>PEOR RUTA IDENTIFICADA (ALTO RIESGO / DESACONSEJADA)</span>
+                              <span>MÁS INEFICIENTE Y LENTA (ALTO RIESGO)</span>
+                            </div>
+                          )}
+                          {!esMejor && !esPeor && (
+                            <div className="card-eval-banner eval-alt-banner">
+                              <span>RUTA ALTERNATIVA #{r.rankingPos || ''} ({r.badge})</span>
                             </div>
                           )}
 
@@ -1464,13 +1682,14 @@ function App() {
                               </span>
                             </div>
 
-                            {/* Botón de Selección que además cierra overlay y centra mapa */}
+                            {/* Botón de Selección que además cierra overlay, persiste en BD y centra mapa */}
                             <button
                               type="button"
                               className={`btn-select-route ${esSeleccionada ? 'btn-selected' : ''}`}
                               onClick={() => {
                                 setRutaActivaId(r.id);
                                 setMostrarOverlayRutas(false);
+                                guardarRutaEnBaseDatos(r, origen, destino, equiposSeleccionados);
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                               }}
                             >
@@ -1490,49 +1709,16 @@ function App() {
                       );
                     })}
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-      )}
-
-      {/* Modal de confirmación si la ruta calculada es muy similar a la anterior */}
-      {modalConfirmacionRuta && (
-        <div className="mars-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-          <div className="mars-modal-dialog">
-            <div className="mars-modal-header">
-              <span className="mars-modal-tag">CONTROL DE RUTAS &bull; BASE DE DATOS MARTE</span>
-              <h3 id="modal-title" className="mars-modal-title">Ruta Similar Detectada</h3>
-            </div>
-            <p className="mars-modal-body">
-              {modalConfirmacionRuta.mensaje}
-            </p>
-            <div className="mars-modal-actions">
-              <button
-                type="button"
-                className="btn-pro-outline"
-                onClick={() => setModalConfirmacionRuta(null)}
-              >
-                Omitir Guardado
-              </button>
-              <button
-                type="button"
-                className="btn-pro-primary"
-                onClick={() => {
-                  const m = modalConfirmacionRuta;
-                  setModalConfirmacionRuta(null);
-                  guardarRutaEnBaseDatos(m.ruta, m.origen, m.destino, m.equipos);
-                }}
-              >
-                Guardar en Base de Datos
-              </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
+        </main>
+      )}
 
-      {/* Toast de confirmación de guardado en MySQL */}
+      {/* Toast de guardado automático en MySQL (sin requerir confirmación) */}
       {notificacionBd && (
         <div className="db-save-toast" role="status">
           <span className="db-toast-icon">✓</span>

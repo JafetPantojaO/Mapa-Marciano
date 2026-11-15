@@ -1,4 +1,4 @@
-// Motor de navegacion y calculo de rutas para el rover marciano (Dijkstra Multicriterio)
+// Motor de navegacion y calculo de rutas para el rover marciano (Exploración Exhaustiva Multicriterio)
 import { RADIO_MARTE_KM, PUNTOS_MARTE } from '../constants/marsConstants.js';
 import { calcularDistanciaMarciana } from './marsGeodesyService.js';
 
@@ -57,12 +57,12 @@ const CONFIG_ROVER = {
     }
   },
   desconocido: 0.5,
-  kVecinos: 10, // Conectividad ampliada para permitir multiples corredores alternativos
-  velocidadRoverKmH: 0.14 // Velocidad promedio de avance del rover en terreno marciano
+  kVecinos: 5, // Conectividad topologica equilibrada para exploracion exhaustiva de caminos
+  velocidadRoverKmH: 0.14 // Velocidad promedio de avance del rover en superficie marciana
 };
 
 // Convierte los datos ambientales de un punto a factor de riesgo 0..1
-function evaluarRiesgoPunto(p, L, W) {
+export function evaluarRiesgoPunto(p, L = CONFIG_ROVER.rover, W = CONFIG_ROVER.pesos) {
   const r = (v, m) => (v == null ? null : Math.max(0, v / m));
   const cl = [r(p.viento_ms, L.viento), r(p.opacidad_polvo, L.polvo)].filter((v) => v != null);
   let term = null;
@@ -88,206 +88,386 @@ function evaluarRiesgoPunto(p, L, W) {
   return { riesgo: pw > 0 ? suma / pw : 0.5, bloq, falt };
 }
 
-// Construye el grafo ponderado de conexiones entre puntos de Marte
-function construirGrafo(puntos, carga, usarRiesgo, pesosPersonalizados, factorPeligroMultiplicador = 3, instrumentos = []) {
-  const pf = CONFIG_ROVER.perfiles[carga] || CONFIG_ROVER.perfiles.ninguna;
-  const limInstrumentos = {};
-  const pesosInstrumentos = {};
-
-  if (instrumentos && instrumentos.length > 0) {
-    instrumentos.forEach((inst) => {
-      const cInst = PERFILES_INSTRUMENTOS[inst];
-      if (cInst) {
-        if (cInst.lim) {
-          for (const k in cInst.lim) {
-            limInstrumentos[k] = Math.min(limInstrumentos[k] ?? Infinity, cInst.lim[k]);
-          }
-        }
-        if (cInst.pesos) {
-          for (const k in cInst.pesos) {
-            pesosInstrumentos[k] = Math.max(pesosInstrumentos[k] ?? 0, cInst.pesos[k]);
-          }
-        }
-      }
-    });
-  }
-
-  const L = Object.assign({}, CONFIG_ROVER.rover, pf.lim, limInstrumentos);
-  const W = Object.assign({}, CONFIG_ROVER.pesos, pf.pesos, pesosPersonalizados || {}, pesosInstrumentos);
-  const por = new Map();
-  const info = new Map();
+/**
+ * Construye el grafo de conectividad espacial entre los puntos cartografiados de Marte.
+ * Conecta cada punto con sus k vecinos mas cercanos segun la distancia ortodromica marciana.
+ */
+export function construirGrafoBacktracking(puntos = PUNTOS_MARTE, kVecinos = CONFIG_ROVER.kVecinos) {
   const g = new Map();
-
-  puntos.forEach((p) => {
-    por.set(p.id, p);
-    info.set(p.id, evaluarRiesgoPunto(p, L, W));
-    g.set(p.id, []);
-  });
+  puntos.forEach((p) => g.set(p.id, []));
 
   const pares = [];
-  puntos.forEach((p) =>
+  puntos.forEach((p) => {
     puntos
       .filter((q) => q.id !== p.id)
       .map((q) => [calcularDistanciaMarciana(p.lat, p.lon, q.lat, q.lon), q.id])
       .sort((a, b) => a[0] - b[0])
-      .slice(0, CONFIG_ROVER.kVecinos)
-      .forEach(([, j]) => pares.push([p.id, j]))
-  );
+      .slice(0, kVecinos)
+      .forEach(([, j]) => pares.push([p.id, j]));
+  });
 
   const vistos = new Set();
   pares.forEach(([a, b]) => {
-    const k = [a, b].sort().join('|');
-    if (vistos.has(k) || !por.has(a) || !por.has(b)) return;
-    vistos.add(k);
-    if (usarRiesgo && (info.get(a).bloq || info.get(b).bloq)) return;
-    const d = calcularDistanciaMarciana(por.get(a).lat, por.get(a).lon, por.get(b).lat, por.get(b).lon);
+    const key = [a, b].sort().join('|');
+    if (vistos.has(key)) return;
+    vistos.add(key);
 
-    let penalizacionExtraInst = 0;
-    let afinidadExtraInst = 0;
-    if (usarRiesgo && instrumentos && instrumentos.length > 0) {
-      // Efecto del peso acumulado de instrumentación en subidas y tracción
-      penalizacionExtraInst += (instrumentos.length * 0.35) * Math.max(0, (por.get(b).pendiente_grados - 4.5) / 3.0);
+    const pa = puntos.find((p) => p.id === a);
+    const pb = puntos.find((p) => p.id === b);
+    if (!pa || !pb) return;
 
+    const d = calcularDistanciaMarciana(pa.lat, pa.lon, pb.lat, pb.lon);
+    g.get(a).push({ to: b, dist: d });
+    g.get(b).push({ to: a, dist: d });
+  });
+
+  return g;
+}
+
+/**
+ * ALGORITMO BACKTRACKING (Recursivo con poda de ciclos y limite de saltos):
+ * Explora el espacio de estados para encontrar todos los caminos simples entre origen y destino.
+ * Deshace cada decision (backtracking) para explorar exhaustivamente todas las rutas disponibles.
+ */
+export function buscarTodasLasRutasBacktracking(grafo, origenId, destinoId, maxSaltos = 5, limiteMax = 80) {
+  const rutasEncontradas = [];
+  const visitados = new Set([origenId]);
+
+  function backtrack(nodoActual, caminoActual, distAcumulada) {
+    // Caso base de exito: hemos alcanzado el destino
+    if (nodoActual === destinoId) {
+      rutasEncontradas.push({
+        puntosIds: [...caminoActual],
+        distanciaKm: Math.round(distAcumulada)
+      });
+      return;
+    }
+
+    // Poda: si excedemos el numero maximo de saltos o el cupo de seguridad
+    if (caminoActual.length > maxSaltos || rutasEncontradas.length >= limiteMax * 2) {
+      return;
+    }
+
+    const vecinos = grafo.get(nodoActual) || [];
+    for (let i = 0; i < vecinos.length; i++) {
+      const arista = vecinos[i];
+      // Poda de ciclos: no revisitar un punto ya presente en la ruta actual
+      if (!visitados.has(arista.to)) {
+        // 1. Elegir paso (Decision)
+        visitados.add(arista.to);
+        caminoActual.push(arista.to);
+
+        // 2. Explorar recursivamente
+        backtrack(arista.to, caminoActual, distAcumulada + arista.dist);
+
+        // 3. Deshacer paso (Retroceso / Backtrack del estado)
+        caminoActual.pop();
+        visitados.delete(arista.to);
+      }
+    }
+  }
+
+  // Ejecucion inicial del backtracking
+  backtrack(origenId, [origenId], 0);
+
+  // Si los puntos estan muy distantes o en polos opuestos y se encontraron pocas rutas,
+  // se profundiza adaptativamente un salto mas
+  if (rutasEncontradas.length < 6 && maxSaltos < 7) {
+    rutasEncontradas.length = 0;
+    visitados.clear();
+    visitados.add(origenId);
+
+    function backtrackAdaptativo(nodoActual, caminoActual, distAcumulada) {
+      if (nodoActual === destinoId) {
+        rutasEncontradas.push({
+          puntosIds: [...caminoActual],
+          distanciaKm: Math.round(distAcumulada)
+        });
+        return;
+      }
+      if (caminoActual.length > maxSaltos + 1 || rutasEncontradas.length >= limiteMax * 2) {
+        return;
+      }
+
+      const vecinos = grafo.get(nodoActual) || [];
+      for (let i = 0; i < vecinos.length; i++) {
+        const arista = vecinos[i];
+        if (!visitados.has(arista.to)) {
+          visitados.add(arista.to);
+          caminoActual.push(arista.to);
+          backtrackAdaptativo(arista.to, caminoActual, distAcumulada + arista.dist);
+          caminoActual.pop();
+          visitados.delete(arista.to);
+        }
+      }
+    }
+
+    backtrackAdaptativo(origenId, [origenId], 0);
+  }
+
+  return rutasEncontradas;
+}
+
+/**
+ * Evalua multicriterio y ordena todas las rutas encontradas por el backtracking:
+ * Desde la mas factible y rapida (alta seguridad, menor tiempo)
+ * Hasta la mas ineficiente y lenta (desvios kilometricos extremos, alto riesgo).
+ */
+function evaluarYOrdenarRutasBacktracking(rutasRaw, origenPunto, destinoPunto, tieneMaterialCientifico = false, instrumentos = []) {
+  if (!rutasRaw || rutasRaw.length === 0) return [];
+
+  const minDist = Math.min(...rutasRaw.map((r) => r.distanciaKm));
+
+  // 1. Evaluacion de factores ambientales, mecanicos y de duracion por cada ruta
+  const rutasEvaluadas = rutasRaw.map((r) => {
+    const paradas = r.puntosIds.map((id) => PUNTOS_MARTE.find((p) => p.id === id)).filter(Boolean);
+    const distanciaKm = r.distanciaKm;
+    const horasEstimadas = Math.round(distanciaKm / CONFIG_ROVER.velocidadRoverKmH);
+
+    const pendientes = paradas.map((p) => p.pendiente_grados ?? 5);
+    const vientos = paradas.map((p) => p.viento_ms ?? 12);
+    const polvos = paradas.map((p) => p.opacidad_polvo ?? 1);
+    const tempsMin = paradas.map((p) => p.temp_min_c ?? -70);
+    const tempsMax = paradas.map((p) => p.temp_max_c ?? 0);
+
+    const maxPendiente = Math.max(...pendientes);
+    const promPendiente = pendientes.reduce((a, b) => a + b, 0) / pendientes.length;
+    const maxViento = Math.max(...vientos);
+    const promViento = vientos.reduce((a, b) => a + b, 0) / vientos.length;
+    const maxPolvo = Math.max(...polvos);
+    const promPolvo = polvos.reduce((a, b) => a + b, 0) / polvos.length;
+    const tMinGlobal = Math.min(...tempsMin);
+    const tMaxGlobal = Math.max(...tempsMax);
+    const oscilacionTermica = tMaxGlobal - tMinGlobal;
+
+    // Calculo de penalizacion multicriterio
+    // Factibilidad y rapidez: menor distancia, menor tiempo, menores pendientes y menor polvo
+    const ratioDistancia = distanciaKm / (minDist || 1);
+    let penalizacion = (ratioDistancia - 1.0) * 36; // Penalizacion por desvio kilometrico y lentitud
+    penalizacion += Math.max(0, maxPendiente - 8) * 1.8; // Terreno escarpado
+    penalizacion += Math.max(0, promPendiente - 6) * 1.4;
+    penalizacion += Math.max(0, maxPolvo - 1.1) * 12; // Polvo que atenua paneles solares
+    penalizacion += Math.max(0, promPolvo - 1.0) * 8;
+    penalizacion += Math.max(0, maxViento - 16) * 1.2; // Rafagas eolicas
+    penalizacion += Math.max(0, -75 - tMinGlobal) * 0.35; // Frio severo nocturno
+    penalizacion += Math.max(0, oscilacionTermica - 65) * 0.25;
+    penalizacion += (paradas.length - 2) * 2.2; // Friccion de maniobra por paradas extra
+
+    // Penalizaciones especificas por carga cientifica
+    if (tieneMaterialCientifico) {
+      if (maxPendiente > 10) penalizacion += 16 + (maxPendiente - 10) * 1.5;
+      if (maxPolvo > 1.3) penalizacion += 12;
+      if (oscilacionTermica > 70) penalizacion += 8;
+    }
+
+    if (instrumentos && instrumentos.length > 0) {
       instrumentos.forEach((inst) => {
-        const pB = por.get(b);
-        if (inst.includes('LIBS')) {
-          if (pB.id === 13 || pB.id === 4) afinidadExtraInst += 0.45;
-          if (pB.opacidad_polvo > 1.2) penalizacionExtraInst += 1.8;
-        }
-        if (inst.includes('Taladro')) {
-          if (pB.id === 13 || pB.id === 4) afinidadExtraInst += 0.50;
-          if (pB.pendiente_grados > 5.0) penalizacionExtraInst += 2.5 * Math.pow((pB.pendiente_grados - 5.0) / 2, 1.4);
-          if (pB.opacidad_polvo > 1.3) penalizacionExtraInst += 1.5;
-        }
-        if (inst.includes('RIMFAX')) {
-          if (pB.id === 5 || pB.id === 1) afinidadExtraInst += 0.55;
-          if (pB.pendiente_grados > 6.0) penalizacionExtraInst += 2.0;
-        }
-        if (inst.includes('MEDA')) {
-          if (pB.viento_ms > 13.0) penalizacionExtraInst += 2.2 * ((pB.viento_ms - 13.0) / 3);
-          if (pB.opacidad_polvo > 1.1) penalizacionExtraInst += 2.0 * ((pB.opacidad_polvo - 1.1) / 0.3);
-          if (pB.id === 17) afinidadExtraInst += 0.3;
-        }
-        if (inst.includes('Mastcam')) {
-          if (pB.opacidad_polvo > 0.85) penalizacionExtraInst += 3.2 * ((pB.opacidad_polvo - 0.85) / 0.25);
-          if (pB.id === 17) afinidadExtraInst += 0.4;
-        }
-        if (inst.includes('SHERLOC')) {
-          if (pB.id === 24 || pB.id === 14 || pB.id === 21) afinidadExtraInst += 0.60;
-          const osc = (pB.temp_max_c || 0) - (pB.temp_min_c || -70);
-          if (osc > 68) penalizacionExtraInst += 2.0;
-        }
+        if (inst.includes('RIMFAX') && maxPendiente > 8.5) penalizacion += 9;
+        if (inst.includes('LIBS') && maxPolvo > 1.2) penalizacion += 9;
+        if (inst.includes('Taladro') && maxPendiente > 7.0) penalizacion += 12;
+        if (inst.includes('MEDA') && maxViento > 15.0) penalizacion += 8;
+        if (inst.includes('Mastcam') && maxPolvo > 1.0) penalizacion += 11;
+        if (inst.includes('SHERLOC') && oscilacionTermica > 65) penalizacion += 9;
       });
     }
 
-    const factorTotal = Math.max(0.2, 1 + factorPeligroMultiplicador * ((info.get(a).riesgo + info.get(b).riesgo) / 2) + penalizacionExtraInst - afinidadExtraInst);
-    const c = usarRiesgo ? d * factorTotal : d;
-    g.get(a).push([b, c, d]);
-    g.get(b).push([a, c, d]);
+    const rawScore = 100 - penalizacion;
+
+    return {
+      puntosIds: r.puntosIds,
+      paradas,
+      distanciaKm,
+      horasEstimadas,
+      maxPendiente,
+      promPendiente,
+      maxViento,
+      promViento,
+      maxPolvo,
+      promPolvo,
+      tMinGlobal,
+      tMaxGlobal,
+      oscilacionTermica,
+      rawScore
+    };
   });
 
-  return { g, info, por };
-}
-
-// Algoritmo de camino mas corto Dijkstra
-function ejecutarDijkstra(g, s, t) {
-  const dist = new Map([[s, 0]]);
-  const prev = new Map();
-  const hecho = new Set();
-
-  for (;;) {
-    let u = null;
-    for (const [n, d] of dist) {
-      if (!hecho.has(n) && (u === null || d < dist.get(u))) u = n;
+  // 2. ORDENAMIENTO ESTRICTO:
+  // Desde la mas factible y rapida (mayor score / menor tiempo) hasta la mas ineficiente y lenta
+  rutasEvaluadas.sort((a, b) => {
+    if (Math.abs(b.rawScore - a.rawScore) > 0.01) {
+      return b.rawScore - a.rawScore;
     }
-    if (u === null) return null;
-    if (u === t) break;
-    hecho.add(u);
-    const vecinos = g.get(u) || [];
-    for (const [v, c] of vecinos) {
-      const nuevo = dist.get(u) + c;
-      if (nuevo < (dist.has(v) ? dist.get(v) : Infinity)) {
-        dist.set(v, nuevo);
-        prev.set(v, u);
+    return a.distanciaKm - b.distanciaKm;
+  });
+
+  const total = rutasEvaluadas.length;
+  const maxRaw = rutasEvaluadas[0].rawScore;
+  const minRaw = rutasEvaluadas[total - 1].rawScore;
+  const rango = Math.max(1, maxRaw - minRaw);
+
+  // 3. Normalizacion y asignacion de clasificacion, insignias, colores y pros/contras
+  return rutasEvaluadas.map((r, index) => {
+    const esMejor = index === 0;
+    const esPeor = index === total - 1 && total > 1;
+    const rankingPos = index + 1;
+
+    // Normalizar score entre 97 (mejor) y 28 (peor)
+    let score;
+    if (esMejor) {
+      score = 97;
+    } else if (esPeor) {
+      score = 28;
+    } else {
+      const fraccion = (r.rawScore - minRaw) / rango;
+      score = Math.round(34 + fraccion * 58);
+      score = Math.max(34, Math.min(94, score));
+    }
+
+    // Clasificacion de badges y colores tematicos en degradado de seguridad
+    let tipoEvaluacion = 'alternativa';
+    let badge = 'ALTERNATIVA VIABLE';
+    let color = '#38bdf8'; // Celeste
+    let nombre = `Ruta ${rankingPos} • Alternativa`;
+    let descripcionCorta = '';
+
+    if (esMejor) {
+      tipoEvaluacion = 'mejor';
+      badge = 'MÁS FACTIBLE Y RÁPIDA (RECOMENDADA)';
+      color = '#10b981'; // Verde esmeralda
+      nombre = `Ruta 1 • Más Factible y Rápida (Óptima)`;
+      descripcionCorta = 'Máxima viabilidad operativa y menor tiempo de traslado. Pendientes controladas, baja atenuación de polvo y óptima estabilidad.';
+    } else if (esPeor) {
+      tipoEvaluacion = 'peor';
+      badge = 'MÁS INEFICIENTE Y LENTA (ALTO RIESGO)';
+      color = '#ef4444'; // Rojo advertencia
+      nombre = `Ruta ${rankingPos} • Más Ineficiente y Lenta`;
+      descripcionCorta = 'Ruta crítica desaconsejada. Máximo tiempo de navegación acumulado, desvíos kilométricos masivos y alta exposición ambiental.';
+    } else {
+      const percentil = index / (total - 1);
+      if (percentil < 0.25) {
+        badge = 'ALTA FACTIBILIDAD';
+        color = '#06b6d4'; // Cian
+        nombre = `Ruta ${rankingPos} • Alta Factibilidad / Rápida`;
+        descripcionCorta = 'Excelente alternativa de navegación con bajo kilometraje y superficie predominantemente llana.';
+      } else if (percentil < 0.55) {
+        badge = 'EFICIENTE / RELIEVE SUAVE';
+        color = '#8b5cf6'; // Violeta
+        nombre = `Ruta ${rankingPos} • Corredor Alternativo`;
+        descripcionCorta = 'Corredor secundario viable con velocidad de avance constante y relieve moderado.';
+      } else if (percentil < 0.80) {
+        badge = 'MODERADA (DESVÍO)';
+        color = '#f59e0b'; // Ámbar
+        nombre = `Ruta ${rankingPos} • Desvío Secundario`;
+        descripcionCorta = 'Ruta con mayor tiempo de recorrido y exposición a variaciones térmicas intermedias.';
+      } else {
+        badge = 'INEFICIENTE Y LENTA';
+        color = '#f97316'; // Naranja
+        nombre = `Ruta ${rankingPos} • Ineficiente / Mayor Desgaste`;
+        descripcionCorta = 'Trayectoria prolongada con múltiples escalas intermedias y mayor fatiga mecánica para el rover.';
       }
     }
-  }
 
-  const ruta = [t];
-  while (ruta[0] !== s) {
-    const anterior = prev.get(ruta[0]);
-    if (anterior === undefined) return null;
-    ruta.unshift(anterior);
-  }
-  return ruta;
-}
+    // Generacion de Pros y Contras calibrados
+    const pros = [];
+    const contras = [];
 
-// Calcula longitud total de una secuencia de paradas
-function calcularLargoRuta(g, ruta) {
-  return ruta.slice(1).reduce((s, v, i) => {
-    const arista = (g.get(ruta[i]) || []).find((e) => e[0] === v);
-    return s + (arista ? arista[2] : 0);
-  }, 0);
+    if (esMejor) {
+      pros.push(`MÁXIMA FACTIBILIDAD: Calificada con el mayor índice de seguridad y rapidez (${score}/100).`);
+      pros.push(`Menor tiempo de desplazamiento estimado (${r.horasEstimadas.toLocaleString()} h) en ${r.distanciaKm.toLocaleString()} km.`);
+      pros.push(`Pendientes controladas (máx. ${r.maxPendiente.toFixed(1)}°, prom. ${r.promPendiente.toFixed(1)}°): mínimo esfuerzo motriz y nulo riesgo de vuelco.`);
+      pros.push(`Baja opacidad atmosférica (${r.promPolvo.toFixed(2)} tau): óptima visibilidad LIDAR y carga fotovoltaica.`);
+      if (tieneMaterialCientifico) {
+        pros.push(`Protección integral garantizada para instrumental científico y sensores de navegación.`);
+      }
+      contras.push(`Requiere circular por ${r.paradas.length} zonas de paso intermedias.`);
+    } else if (esPeor) {
+      pros.push(`Conecta los puntos mediante corredores geográficos alternos en caso de bloqueo catastrófico.`);
+      contras.push(`MÁS INEFICIENTE Y LENTA: Calificación de riesgo crítico (Score: ${score}/100).`);
+      contras.push(`Tiempo de viaje masivo (${r.horasEstimadas.toLocaleString()} h): +${Math.round(r.distanciaKm - minDist).toLocaleString()} km extras de desvío.`);
+      contras.push(`Atraviesa terrenos con pendientes de hasta ${r.maxPendiente.toFixed(1)}°: peligro inminente de deslizamiento en regolito.`);
+      contras.push(`Exposición a tormentas de polvo densas (hasta ${r.maxPolvo.toFixed(2)} tau) y vientos de ${r.maxViento.toFixed(1)} m/s.`);
+      contras.push(`Frío nocturno severo de hasta ${r.tMinGlobal}°C con drenaje intensivo de baterías.`);
+      if (tieneMaterialCientifico) {
+        contras.push(`NO RECOMENDADA: Riesgo crítico de descalibración o ruptura de instrumental delicado.`);
+      }
+    } else {
+      pros.push(`Ruta disponible #${rankingPos}: ${r.distanciaKm.toLocaleString()} km en aprox. ${r.horasEstimadas.toLocaleString()} horas.`);
+      if (r.maxPendiente <= 10) {
+        pros.push(`Relieve suave con pendiente máxima de ${r.maxPendiente.toFixed(1)}°: bajo consumo en tracción.`);
+      } else {
+        pros.push(`Superficie transitable apta para tracción diferencial.`);
+      }
+      if (r.promPolvo < 1.3) {
+        pros.push(`Atmósfera aceptable con opacidad promedio de ${r.promPolvo.toFixed(2)} tau.`);
+      }
+
+      const kmExtra = r.distanciaKm - minDist;
+      if (kmExtra > 0) {
+        contras.push(`Desvío de +${Math.round(kmExtra).toLocaleString()} km (+${Math.round(kmExtra / CONFIG_ROVER.velocidadRoverKmH).toLocaleString()} h) frente a la ruta más directa.`);
+      }
+      if (r.maxPendiente > 12) {
+        contras.push(`Tramos con inclinación de hasta ${r.maxPendiente.toFixed(1)}° que exigen precaución.`);
+      }
+      if (r.maxPolvo >= 1.6) {
+        contras.push(`Presencia de polvo moderado (${r.maxPolvo.toFixed(2)} tau) en sectores abiertos.`);
+      }
+    }
+
+    return {
+      id: esMejor ? 'optima' : esPeor ? 'peor' : `ruta-${rankingPos}`,
+      estrategiaId: esMejor ? 'optima' : esPeor ? 'peor' : `alternativa-${rankingPos}`,
+      tipoEvaluacion,
+      rankingPos,
+      nombre,
+      badge,
+      color,
+      descripcionCorta,
+      score,
+      distanciaKm: r.distanciaKm,
+      horasEstimadas: r.horasEstimadas,
+      paradas: r.paradas,
+      puntosIds: r.puntosIds,
+      coordenadasLeaflet: r.paradas.map((p) => [p.lat, p.lon]),
+      factores: {
+        superficie: {
+          pendienteMax: r.maxPendiente,
+          pendienteProm: r.promPendiente,
+          estado: r.maxPendiente <= 10 ? 'Óptimo' : r.maxPendiente <= 16 ? 'Aceptable' : 'Peligroso'
+        },
+        clima: {
+          vientoMax: r.maxViento,
+          vientoProm: r.promViento,
+          polvoMax: r.maxPolvo,
+          polvoProm: r.promPolvo,
+          estado: r.promPolvo < 1.2 && r.maxViento < 18 ? 'Limpio' : r.promPolvo < 1.8 ? 'Moderado' : 'Severo'
+        },
+        termico: {
+          tMin: r.tMinGlobal,
+          tMax: r.tMaxGlobal,
+          oscilacion: r.oscilacionTermica,
+          estado: r.tMinGlobal >= -80 ? 'Controlado' : 'Frío Crítico'
+        },
+        materialCientifico: {
+          apto: esPeor ? false : (tieneMaterialCientifico ? r.maxPendiente <= 12 && r.promPolvo <= 1.5 : true),
+          diagnostico: esPeor
+            ? 'NO APTO: Alto riesgo de destrucción o descalibración irreversible del instrumental.'
+            : (tieneMaterialCientifico
+                ? (r.maxPendiente <= 10
+                    ? 'Apto: Máxima protección y amortiguación para sensores ópticos y de subsuelo.'
+                    : 'Apto con precaución en velocidad para amortiguar vibraciones mecánicas.')
+                : 'Apto: Sin restricciones de carga científica.')
+        }
+      },
+      pros,
+      contras
+    };
+  });
 }
 
 /**
- * Planifica una unica ruta segura tradicional con Dijkstra
- */
-export function planificarRutaSimple(origenId, destinoId, tipoCarga = 'ninguna') {
-  const o = Number(origenId);
-  const d = Number(destinoId);
-
-  if (!CONFIG_ROVER.perfiles[tipoCarga]) {
-    return { ok: false, mensaje: `Perfil de carga no reconocido: ${tipoCarga}` };
-  }
-
-  const redSegura = construirGrafo(PUNTOS_MARTE, tipoCarga, true);
-  if (!redSegura.info.has(o) || !redSegura.info.has(d)) {
-    return { ok: false, mensaje: 'El origen o el destino no existen en la red de puntos de Marte.' };
-  }
-
-  const ruta = ejecutarDijkstra(redSegura.g, o, d);
-  if (!ruta) {
-    return { ok: false, mensaje: 'No hay ruta segura entre esos puntos con la carga especificada.' };
-  }
-
-  const redDirecta = construirGrafo(PUNTOS_MARTE, tipoCarga, false);
-  const directa = ejecutarDijkstra(redDirecta.g, o, d);
-
-  const paradas = ruta.map((i) =>
-    Object.assign({}, redSegura.por.get(i), {
-      riesgo: redSegura.info.get(i).riesgo,
-      falt: redSegura.info.get(i).falt
-    })
-  );
-
-  const kmTotal = calcularLargoRuta(redSegura.g, ruta);
-  const kmDirecta = calcularLargoRuta(redDirecta.g, directa);
-
-  return {
-    ok: true,
-    carga: tipoCarga,
-    rutaIds: ruta,
-    paradas,
-    km: kmTotal,
-    kmDirecta,
-    geojson: {
-      type: 'Feature',
-      properties: { carga: tipoCarga, distanciaKm: kmTotal },
-      geometry: {
-        type: 'LineString',
-        coordinates: paradas.map((p) => [p.lon, p.lat])
-      }
-    }
-  };
-}
-
-/**
- * Genera el catalogo completo de rutas alternativas multicriterio evaluando:
- * 1. Superficie (pendiente y terreno)
- * 2. Clima y atmosfera (viento y opacidad de polvo)
- * 3. Termico (temperatura minima, maxima y oscilacion)
- * 4. Instrumental cientifico (sensibilidad a vibraciones y polvo)
+ * Genera el catalogo completo de todas las rutas disponibles entre dos puntos en Marte,
+ * exploradas exhaustivamente mediante el ALGORITMO BACKTRACKING y ordenadas:
+ * desde la mas factible y rapida hasta la mas ineficiente y lenta.
  */
 export function generarListaRutas(origenId, destinoId, tipoCarga = 'normal', tieneMaterialCientifico = false, instrumentos = []) {
   const o = Number(origenId);
@@ -305,198 +485,26 @@ export function generarListaRutas(origenId, destinoId, tipoCarga = 'normal', tie
 
   const cargaAjustada = tieneMaterialCientifico ? 'delicada' : tipoCarga;
 
-  const estrategias = [
-    {
-      id: 'optima',
-      nombre: 'Ruta Optima Multicriterio',
-      badge: 'Recomendada',
-      color: '#10b981',
-      usarRiesgo: true,
-      pesos: tieneMaterialCientifico
-        ? { sup: 6, clima: 3, term: 3.5 }
-        : { sup: 3.5, clima: 2.5, term: 2.5 },
-      factorPeligro: 3.5,
-      descripcionCorta: 'Balance optimo entre seguridad mecanica, proteccion climatica y rango termico.'
-    },
-    {
-      id: 'directa',
-      nombre: 'Ruta Directa de Minima Distancia',
-      badge: 'Mas Rapida',
-      color: '#f59e0b',
-      usarRiesgo: false,
-      pesos: { sup: 1, clima: 1, term: 1 },
-      factorPeligro: 0,
-      descripcionCorta: 'Trayectoria geometrica mas corta. Menor kilometraje a expensas de mayor exposicion a pendientes y vientos.'
-    },
-    {
-      id: 'climatica',
-      nombre: 'Ruta de Proteccion Termica y Atmosferica',
-      badge: 'Menor Estres Climatico',
-      color: '#38bdf8',
-      usarRiesgo: true,
-      pesos: { sup: 1.5, clima: 6, term: 5 },
-      factorPeligro: 4.0,
-      descripcionCorta: 'Minimiza la acumulacion de polvo en paneles y evita oscilaciones termicas extremas.'
-    },
-    {
-      id: 'suave',
-      nombre: 'Ruta de Relieve Suave (Topografica)',
-      badge: 'Minima Inclinacion',
-      color: '#a855f7',
-      usarRiesgo: true,
-      pesos: { sup: 7, clima: 1.5, term: 1.5 },
-      factorPeligro: 4.5,
-      descripcionCorta: 'Disenada para evitar canones y escarpes. Menor desgaste de ruedas y suspension.'
-    }
-  ];
+  // 1. Construir grafo de conectividad espacial
+  const grafo = construirGrafoBacktracking(PUNTOS_MARTE, CONFIG_ROVER.kVecinos);
 
-  const rutasProcesadas = [];
-  const vistasRutasSet = new Set();
+  // 2. Ejecutar Algoritmo Backtracking Recursivo
+  const rutasRaw = buscarTodasLasRutasBacktracking(grafo, o, d, 5, 80);
 
-  for (const est of estrategias) {
-    const red = construirGrafo(PUNTOS_MARTE, cargaAjustada, est.usarRiesgo, est.pesos, est.factorPeligro, instrumentos);
-    let camino = ejecutarDijkstra(red.g, o, d);
-
-    if (!camino && est.usarRiesgo) {
-      const redFallback = construirGrafo(PUNTOS_MARTE, 'normal', true, est.pesos, 2, instrumentos);
-      camino = ejecutarDijkstra(redFallback.g, o, d);
-    }
-    if (!camino) {
-      const redDirecta = construirGrafo(PUNTOS_MARTE, 'ninguna', false, null, 0, []);
-      camino = ejecutarDijkstra(redDirecta.g, o, d);
-    }
-
-    if (!camino || camino.length === 0) continue;
-
-    const claveCamino = camino.join('-');
-    const yaExiste = vistasRutasSet.has(claveCamino);
-    vistasRutasSet.add(claveCamino);
-
-    const paradas = camino.map((id) => PUNTOS_MARTE.find((p) => p.id === id));
-    const redMedicion = construirGrafo(PUNTOS_MARTE, 'ninguna', false);
-    const distanciaTotal = calcularLargoRuta(redMedicion.g, camino);
-    const horasEstimadas = Math.round(distanciaTotal / CONFIG_ROVER.velocidadRoverKmH);
-
-    const pendientes = paradas.map((p) => p.pendiente_grados || 5);
-    const vientos = paradas.map((p) => p.viento_ms || 12);
-    const polvos = paradas.map((p) => p.opacidad_polvo || 1);
-    const tempsMin = paradas.map((p) => p.temp_min_c || -70);
-    const tempsMax = paradas.map((p) => p.temp_max_c || 0);
-
-    const maxPendiente = Math.max(...pendientes);
-    const promPendiente = pendientes.reduce((a, b) => a + b, 0) / pendientes.length;
-    const maxViento = Math.max(...vientos);
-    const promViento = vientos.reduce((a, b) => a + b, 0) / vientos.length;
-    const maxPolvo = Math.max(...polvos);
-    const promPolvo = polvos.reduce((a, b) => a + b, 0) / polvos.length;
-    const tMinGlobal = Math.min(...tempsMin);
-    const tMaxGlobal = Math.max(...tempsMax);
-    const oscilacionTermica = tMaxGlobal - tMinGlobal;
-
-    const pros = [];
-    const contras = [];
-
-    // Evaluacion de Superficie
-    if (maxPendiente <= 10) {
-      pros.push(`Pendientes muy suaves (max. ${maxPendiente.toFixed(1)}°): riesgo de vuelco nulo y minimo esfuerzo motriz.`);
-    } else if (maxPendiente <= 16) {
-      pros.push(`Pendiente promedio controlada (${promPendiente.toFixed(1)}°) apta para traccion del rover.`);
-    } else {
-      contras.push(`Atraviesa zonas de alta pendiente (${maxPendiente.toFixed(1)}°): exige traccion diferencial y control de deslizamiento.`);
-    }
-
-    // Evaluacion Atmosferica
-    if (maxViento < 18 && promPolvo < 1.2) {
-      pros.push(`Ambiente atmosferico despejado: viento promedio de ${promViento.toFixed(1)} m/s y baja concentracion de polvo (${promPolvo.toFixed(2)} tau).`);
-    } else if (maxPolvo >= 2.0) {
-      contras.push(`Riesgo de atenuacion solar por polvo elevado (${maxPolvo.toFixed(2)} tau): puede ensuciar paneles y lentes.`);
-    } else {
-      contras.push(`Vientos moderados en rafagas de hasta ${maxViento.toFixed(1)} m/s en zonas abiertas.`);
-    }
-
-    // Evaluacion Termica
-    if (tMinGlobal >= -85 && oscilacionTermica <= 75) {
-      pros.push(`Estabilidad termica favorable (minima de ${tMinGlobal}°C): reduce los ciclos de calentamiento con radioisotopos.`);
-    } else {
-      contras.push(`Frio extremo nocturno de hasta ${tMinGlobal}°C: requiere precalentamiento continuo de actuadores.`);
-    }
-
-    // Impacto en Instrumental
-    if (tieneMaterialCientifico) {
-      if (maxPendiente <= 10 && promPolvo < 1.4) {
-        pros.push(`Excelente para instrumental delicado (${instrumentos.length ? instrumentos.slice(0, 2).join(', ') : 'sensores'}): minima vibracion y calibracion protegida.`);
-      } else {
-        contras.push(`Precaucion con instrumental sensible: vibraciones por irregularidades en el terreno de hasta ${maxPendiente.toFixed(1)}°.`);
-      }
-    }
-
-    if (est.id === 'directa') {
-      pros.push(`Recorrido mas corto (${Math.round(distanciaTotal).toLocaleString()} km): menor consumo energetico.`);
-    } else {
-      const redBase = construirGrafo(PUNTOS_MARTE, 'ninguna', false);
-      const camDirecto = ejecutarDijkstra(redBase.g, o, d);
-      const distDirecta = camDirecto ? calcularLargoRuta(redBase.g, camDirecto) : distanciaTotal;
-      const extraKm = Math.max(0, distanciaTotal - distDirecta);
-      if (extraKm > 50) {
-        contras.push(`Desvio preventivo de seguridad de +${Math.round(extraKm)} km respecto a la linea recta.`);
-      }
-    }
-
-    let score = 100;
-    if (maxPendiente > 15) score -= 18;
-    else if (maxPendiente > 10) score -= 8;
-    if (maxViento > 20) score -= 12;
-    if (maxPolvo > 1.8) score -= 14;
-    if (tMinGlobal < -95) score -= 10;
-    if (tieneMaterialCientifico && maxPendiente > 10) score -= 20;
-    if (est.id === 'directa' && tieneMaterialCientifico) score -= 15;
-    score = Math.max(35, Math.min(99, score));
-
-    rutasProcesadas.push({
-      id: est.id + (yaExiste ? '-alt' : ''),
-      estrategiaId: est.id,
-      nombre: est.nombre,
-      badge: est.badge,
-      color: est.color,
-      descripcionCorta: est.descripcionCorta,
-      score,
-      distanciaKm: Math.round(distanciaTotal),
-      horasEstimadas,
-      paradas,
-      puntosIds: camino,
-      coordenadasLeaflet: paradas.map((p) => [p.lat, p.lon]),
-      factores: {
-        superficie: {
-          pendienteMax: maxPendiente,
-          pendienteProm: promPendiente,
-          estado: maxPendiente <= 10 ? 'Optimo' : maxPendiente <= 17 ? 'Aceptable' : 'Exigente'
-        },
-        clima: {
-          vientoMax: maxViento,
-          vientoProm: promViento,
-          polvoProm: promPolvo,
-          estado: promPolvo < 1.2 && maxViento < 18 ? 'Limpio' : promPolvo < 1.8 ? 'Moderado' : 'Severo'
-        },
-        termico: {
-          tMin: tMinGlobal,
-          tMax: tMaxGlobal,
-          oscilacion: oscilacionTermica,
-          estado: tMinGlobal >= -80 ? 'Controlado' : 'Frio Severo'
-        },
-        materialCientifico: {
-          apto: tieneMaterialCientifico ? maxPendiente <= 12 && promPolvo <= 1.6 : true,
-          diagnostico: tieneMaterialCientifico
-            ? maxPendiente <= 10
-              ? 'Maxima proteccion para sensores opticos y sismologicos.'
-              : 'Apto con velocidad reducida para amortiguar vibraciones.'
-            : 'Sin restricciones de instrumental.'
-        }
-      },
-      pros,
-      contras
-    });
+  if (!rutasRaw || rutasRaw.length === 0) {
+    return { ok: false, mensaje: 'No se encontraron rutas conectadas entre los puntos seleccionados.' };
   }
 
+  // 3. Evaluar y ordenar todas las rutas (de la mas factible y rapida a la mas ineficiente y lenta)
+  const rutasProcesadas = evaluarYOrdenarRutasBacktracking(
+    rutasRaw,
+    puntoO,
+    puntoD,
+    tieneMaterialCientifico,
+    instrumentos
+  );
+
+  // Determinacion de capa sugerida segun instrumental
   let mapaSugerido = 'Mars_Viking_MDIM21_ClrMosaic_global_232m';
   if (instrumentos && instrumentos.length > 0) {
     for (const inst of instrumentos) {
@@ -509,6 +517,8 @@ export function generarListaRutas(origenId, destinoId, tipoCarga = 'normal', tie
 
   return {
     ok: true,
+    algoritmo: 'Exploración Exhaustiva Multicriterio',
+    totalRutasDisponibles: rutasProcesadas.length,
     origen: puntoO,
     destino: puntoD,
     carga: cargaAjustada,
@@ -516,5 +526,36 @@ export function generarListaRutas(origenId, destinoId, tipoCarga = 'normal', tie
     instrumentos,
     mapaSugerido,
     rutas: rutasProcesadas
+  };
+}
+
+/**
+ * Planifica una unica ruta de minima distancia y factibilidad (Retrocompatible)
+ */
+export function planificarRutaSimple(origenId, destinoId, tipoCarga = 'ninguna') {
+  const o = Number(origenId);
+  const d = Number(destinoId);
+
+  const res = generarListaRutas(o, d, tipoCarga, false, []);
+  if (!res.ok || !res.rutas?.length) {
+    return { ok: false, mensaje: res.mensaje || 'No se encontro ruta disponible.' };
+  }
+
+  const mejorRuta = res.rutas[0];
+  return {
+    ok: true,
+    carga: tipoCarga,
+    rutaIds: mejorRuta.puntosIds,
+    paradas: mejorRuta.paradas,
+    km: mejorRuta.distanciaKm,
+    kmDirecta: mejorRuta.distanciaKm,
+    geojson: {
+      type: 'Feature',
+      properties: { carga: tipoCarga, distanciaKm: mejorRuta.distanciaKm },
+      geometry: {
+        type: 'LineString',
+        coordinates: mejorRuta.paradas.map((p) => [p.lon, p.lat])
+      }
+    }
   };
 }

@@ -90,7 +90,8 @@ router.post('/calcular-distancia', (req, res) => {
 /**
  * POST /api/mapa/planificar-rutas
  * Recibe { origenId, destinoId, perfilCarga, tieneEquipo, equiposSeleccionados }
- * Ejecuta el calculo multicriterio Dijkstra del rover y devuelve las rutas alternativas
+ * Ejecuta el calculo exhaustivo de rutas y devuelve todas las rutas disponibles
+ * ordenadas desde la mas factible y rapida hasta la mas ineficiente y lenta.
  */
 router.post('/planificar-rutas', (req, res) => {
   const {
@@ -125,7 +126,7 @@ router.post('/planificar-rutas', (req, res) => {
 
 /**
  * POST /api/mapa/planificar
- * Algoritmo Dijkstra clasico simple con salida GeoJSON
+ * Planificación simple con salida GeoJSON
  */
 router.post('/planificar', (req, res) => {
   const { origenId, destinoId, tipoCarga = 'ninguna' } = req.body;

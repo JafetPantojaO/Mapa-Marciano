@@ -63,7 +63,7 @@ export const CAPAS_MARTE = [
   }
 ];
 
-// Los 25 puntos oficiales de la red Dijkstra del Rover con datos ambientales reales
+// Los 25 puntos oficiales de la red de navegación del Rover con datos ambientales reales
 export const LUGARES_MARTE = RoverRuta && RoverRuta.datos && RoverRuta.datos.puntos
   ? RoverRuta.datos.puntos.map((p) => ({
       id: p.id,

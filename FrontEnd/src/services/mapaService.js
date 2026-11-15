@@ -119,7 +119,7 @@ export async function calcularDistanciaApi(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Solicita al BackEnd la ejecucion del algoritmo Dijkstra multicriterio
+ * Solicita al BackEnd la ejecucion del algoritmo de planificación multicriterio
  */
 export async function planificarRutasApi(origenId, destinoId, perfilCarga, tieneEquipo, equiposSeleccionados) {
   try {

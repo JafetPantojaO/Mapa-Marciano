@@ -97,10 +97,11 @@ Puedes iniciar sesión con cualquiera de los siguientes operadores creados en la
 
 *(En la pantalla de login puedes ingresar tanto el Identificador como el Usuario, o hacer clic directamente en los accesos rápidos).*
 
-### 🗺️ Guardado Automático y Detección de Rutas Similares
+### 🗺️ Guardado Directo Automático y Algoritmo de Backtracking
 
-* Cada vez que se planifica una ruta en el mapa, los datos reales de cartografía marciana (coordenadas geodésicas, distancia ortodrómica, duración y nivel de riesgo) se persisten en las tablas `SolicitudRuta` y `Ruta`.
-* **Detección inteligente de similitud:** Si calculas una ruta idéntica o con variaciones insignificantes (< 10 km) respecto a la última registrada, el sistema desplegará un diálogo de confirmación para que decidas si deseas persistirla o descartarla.
+* Cada vez que se planifica o selecciona una ruta en el mapa, los datos reales de cartografía marciana (coordenadas geodésicas, distancia ortodrómica, duración y nivel de riesgo) se persisten **directamente y sin pedir confirmación** en las tablas `SolicitudRuta` y `Ruta`.
+* **Algoritmo de Backtracking Exhaustivo:** El motor de navegación explora recursivamente todos los caminos simples posibles entre el origen y destino en el grafo cartográfico de Marte.
+* **Ordenamiento de Factibilidad y Velocidad:** Muestra **todas las rutas disponibles**, clasificadas y ordenadas estrictamente desde la **más factible y rápida** (máxima seguridad topográfica, menor opacidad de polvo y menor tiempo de viaje) hasta la **más ineficiente y lenta** (desvíos masivos, relieve accidentado y alto riesgo).
 
 ### Comandos útiles de Docker:
 

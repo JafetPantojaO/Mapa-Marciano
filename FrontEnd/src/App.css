@@ -1517,6 +1517,12 @@ button,
   color: #ffffff;
 }
 
+.eval-alt-banner {
+  background: #1e293b;
+  color: #94a3b8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .score-best strong {
   color: #10b981 !important;
 }
@@ -1643,6 +1649,229 @@ button,
 .btn-close-overlay:hover {
   background: #334155;
   border-color: #64748b;
+  color: #ffffff;
+}
+
+/* Barra de pestañas en modal de rutas */
+.overlay-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  background: #090e1a;
+  border-bottom: 1px solid #1e293b;
+  flex-wrap: wrap;
+}
+
+.overlay-tab-nav-btn {
+  background: transparent;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 180ms ease;
+  border-radius: 0 !important;
+}
+
+.overlay-tab-nav-btn:hover {
+  background: rgba(30, 41, 59, 0.6);
+  color: #f1f5f9;
+  border-color: #334155;
+}
+
+.overlay-tab-nav-btn.is-active {
+  background: #1e293b;
+  color: #38bdf8;
+  border-color: #38bdf8;
+}
+
+.tab-question-nav-btn {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
+}
+
+.tab-question-nav-btn:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+
+.tab-volver-6-btn {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.tab-volver-6-btn:hover {
+  background: rgba(148, 163, 184, 0.18);
+  color: #ffffff;
+}
+
+/* Panel dedicado de la pestaña de pregunta */
+.tab-question-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 380px;
+}
+
+.question-card-box {
+  background: #0d1527;
+  border: 1px solid #1e293b;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  max-width: 540px;
+  width: 100%;
+  padding: 32px 28px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 0 !important;
+}
+
+.question-icon-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.question-card-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.01em;
+}
+
+.question-card-desc {
+  font-size: 13.5px;
+  color: #94a3b8;
+  line-height: 1.55;
+  margin: 0 0 28px 0;
+}
+
+.question-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-confirm-yes {
+  min-width: 130px;
+  padding: 10px 22px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 0 !important;
+}
+
+.btn-confirm-no {
+  min-width: 130px;
+  padding: 10px 22px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 0 !important;
+}
+
+/* Banner de consulta encima de la cuadrícula de rutas */
+.routes-inquiry-banner {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  border-radius: 0 !important;
+}
+
+.inquiry-text-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inquiry-icon-pill {
+  font-size: 18px;
+}
+
+.inquiry-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inquiry-title {
+  font-size: 14px;
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+.inquiry-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.inquiry-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-inquiry-yes {
+  background: #10b981;
+  color: #042f2e;
+  border: none;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 7px 16px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: all 160ms ease;
+  border-radius: 0 !important;
+}
+
+.btn-inquiry-yes:hover {
+  background: #34d399;
+}
+
+.btn-inquiry-no {
+  background: transparent;
+  color: #cbd5e1;
+  border: 1px solid #475569;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 160ms ease;
+  border-radius: 0 !important;
+}
+
+.btn-inquiry-no:hover {
+  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
 }
 
